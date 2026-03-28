@@ -89,7 +89,9 @@ export function handleFeedbackMessage(appName: string, workDir: string) {
       let tmux: string;
 
       if (!sessionId) {
-        const appPort = parseInt(request.nextUrl.port) || undefined;
+        const appPort = parseInt(request.nextUrl.port)
+          || parseInt(request.headers.get('host')?.split(':')[1] || '')
+          || undefined;
 
         const firstMessage = pagePath
           ? `[User is on page: ${pagePath}]\n\n${message.trim()}`

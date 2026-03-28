@@ -4,6 +4,15 @@ import { getRecipe } from "@/lib/recipes";
 
 export const dynamic = "force-dynamic";
 
+const labels = {
+  en: { back: "Back to recipes", ingredients: "Ingredients", preparation: "Preparation" },
+  he: { back: "חזרה למתכונים", ingredients: "מצרכים", preparation: "הכנה" },
+};
+
+function detectLanguage(text: string): "he" | "en" {
+  return /[\u0590-\u05FF]/.test(text) ? "he" : "en";
+}
+
 export default async function RecipePage({
   params,
 }: {
@@ -16,13 +25,17 @@ export default async function RecipePage({
     notFound();
   }
 
+  const lang = detectLanguage(recipe.name);
+  const l = labels[lang];
+  const dir = lang === "he" ? "rtl" : "ltr";
+
   return (
-    <main className="max-w-2xl mx-auto px-4 py-10">
+    <main className="max-w-2xl mx-auto px-4 py-10" dir={dir} lang={lang}>
       <Link
         href="/"
         className="text-sm text-amber-700 hover:text-amber-800 font-medium"
       >
-        &larr; Back to recipes
+        {dir === "rtl" ? "\u2192" : "\u2190"} {l.back}
       </Link>
 
       <h1 className="text-3xl font-bold text-stone-800 mt-4 mb-8">
@@ -31,7 +44,7 @@ export default async function RecipePage({
 
       <section className="mb-8">
         <h2 className="text-lg font-semibold text-stone-700 mb-3">
-          Ingredients
+          {l.ingredients}
         </h2>
         <ul className="space-y-1.5">
           {recipe.ingredients.map((ing, i) => (
@@ -45,7 +58,7 @@ export default async function RecipePage({
 
       <section>
         <h2 className="text-lg font-semibold text-stone-700 mb-3">
-          Preparation
+          {l.preparation}
         </h2>
         <ol className="space-y-3">
           {recipe.steps.map((step, i) => (
