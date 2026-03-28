@@ -42,3 +42,8 @@ next-env.d.ts
 
 # recipe data
 /data
+
+# Bind-mounted from addnewfeature
+lib/feedback-lib/
+app/api/feedback/
+app/issues/
