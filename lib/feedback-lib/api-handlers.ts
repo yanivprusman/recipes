@@ -110,7 +110,7 @@ export function handleFeedbackMessage(appName: string, workDir: string) {
 
       let response: string;
       try {
-        response = await waitForResponse(csid, 120_000);
+        response = await waitForResponse(csid, 300_000);
       } catch (err) {
         const isTimeout = err instanceof Error && err.message.includes('Timeout');
         if (isTimeout) {

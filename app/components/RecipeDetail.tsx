@@ -134,42 +134,41 @@ export default function RecipeDetail({ recipe, labels, dir }: Props) {
             {recipe.yield.amount} {recipe.yield.unit}
           </p>
 
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-            <p className="text-sm font-medium text-stone-700 mb-2">
-              {labels.scaling}
-            </p>
-            <div className="flex gap-2 items-center flex-wrap">
-              <select
-                value={scaleMode}
-                onChange={(e) => {
-                  const mode = e.target.value as "portions" | "percentage";
-                  setScaleMode(mode);
-                  setScaleInput(
-                    mode === "portions" ? String(recipe.yield!.amount) : "100"
-                  );
-                }}
-                className="rounded-lg border border-amber-300 px-2 py-1.5 text-sm text-stone-700 bg-white focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none"
-              >
-                <option value="portions">{labels.portions}</option>
-                <option value="percentage">{labels.percentage}</option>
-              </select>
-              <input
-                type="number"
-                min="0"
-                step="any"
-                value={scaleInput}
-                onChange={(e) => setScaleInput(e.target.value)}
-                className="w-24 rounded-lg border border-amber-300 px-2 py-1.5 text-sm text-stone-700 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none"
-              />
-              {scaleMode === "percentage" && (
-                <span className="text-sm text-stone-500">%</span>
-              )}
-              {scaleMode === "portions" && (
-                <span className="text-sm text-stone-500">
-                  {recipe.yield.unit}
+          <div className="flex gap-2 items-center flex-wrap text-sm text-stone-500">
+            <span>{labels.scaling}:</span>
+            <select
+              value={scaleMode}
+              onChange={(e) => {
+                const mode = e.target.value as "portions" | "percentage";
+                setScaleMode(mode);
+                setScaleInput(
+                  mode === "portions" ? String(recipe.yield!.amount) : "100"
+                );
+              }}
+              className="rounded border border-stone-200 px-1.5 py-1 text-sm text-stone-600 bg-white focus:border-stone-400 focus:ring-1 focus:ring-stone-400 outline-none"
+            >
+              <option value="portions">{labels.portions}</option>
+              <option value="percentage">{labels.percentage}</option>
+            </select>
+            <input
+              type="number"
+              min="0"
+              step="any"
+              value={scaleInput}
+              onChange={(e) => setScaleInput(e.target.value)}
+              className="w-20 rounded border border-stone-200 px-1.5 py-1 text-sm text-stone-600 focus:border-stone-400 focus:ring-1 focus:ring-stone-400 outline-none"
+            />
+            {scaleMode === "percentage" && (
+              <span>%</span>
+            )}
+            {scaleMode === "portions" && (
+              <span>{recipe.yield.unit}</span>
+            )}
+            {scaleFactor !== 1 && (
+              <>
+                <span className="text-stone-400">
+                  ×{scaleFactor.toFixed(2).replace(/0+$/, "").replace(/\.$/, "")}
                 </span>
-              )}
-              {scaleFactor !== 1 && (
                 <button
                   type="button"
                   onClick={() =>
@@ -179,16 +178,11 @@ export default function RecipeDetail({ recipe, labels, dir }: Props) {
                         : "100"
                     )
                   }
-                  className="text-sm text-amber-700 hover:text-amber-800 font-medium"
+                  className="text-stone-400 hover:text-stone-600"
                 >
                   Reset
                 </button>
-              )}
-            </div>
-            {scaleFactor !== 1 && (
-              <p className="text-xs text-stone-400 mt-1.5">
-                ×{scaleFactor.toFixed(2).replace(/0+$/, "").replace(/\.$/, "")}
-              </p>
+              </>
             )}
           </div>
         </section>
