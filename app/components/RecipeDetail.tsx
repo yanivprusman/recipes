@@ -57,11 +57,13 @@ export default function RecipeDetail({ recipe, labels, dir }: Props) {
   const [saving, setSaving] = useState(false);
 
   const [scaleMode, setScaleMode] = useState<"portions" | "percentage">("portions");
-  const [scaleInput, setScaleInput] = useState("");
+  const [scaleInput, setScaleInput] = useState(
+    recipe.yield ? String(recipe.yield.amount) : "100"
+  );
 
   const scaleFactor = (() => {
     const val = parseFloat(scaleInput);
-    if (!val || val <= 0) return 1;
+    if (isNaN(val) || val <= 0) return 1;
     if (scaleMode === "percentage") return val / 100;
     if (recipe.yield) return val / recipe.yield.amount;
     return 1;
@@ -140,8 +142,11 @@ export default function RecipeDetail({ recipe, labels, dir }: Props) {
               <select
                 value={scaleMode}
                 onChange={(e) => {
-                  setScaleMode(e.target.value as "portions" | "percentage");
-                  setScaleInput("");
+                  const mode = e.target.value as "portions" | "percentage";
+                  setScaleMode(mode);
+                  setScaleInput(
+                    mode === "portions" ? String(recipe.yield!.amount) : "100"
+                  );
                 }}
                 className="rounded-lg border border-amber-300 px-2 py-1.5 text-sm text-stone-700 bg-white focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none"
               >
@@ -154,11 +159,6 @@ export default function RecipeDetail({ recipe, labels, dir }: Props) {
                 step="any"
                 value={scaleInput}
                 onChange={(e) => setScaleInput(e.target.value)}
-                placeholder={
-                  scaleMode === "portions"
-                    ? `${recipe.yield.amount}`
-                    : "100"
-                }
                 className="w-24 rounded-lg border border-amber-300 px-2 py-1.5 text-sm text-stone-700 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none"
               />
               {scaleMode === "percentage" && (
@@ -172,7 +172,13 @@ export default function RecipeDetail({ recipe, labels, dir }: Props) {
               {scaleFactor !== 1 && (
                 <button
                   type="button"
-                  onClick={() => setScaleInput("")}
+                  onClick={() =>
+                    setScaleInput(
+                      scaleMode === "portions"
+                        ? String(recipe.yield!.amount)
+                        : "100"
+                    )
+                  }
                   className="text-sm text-amber-700 hover:text-amber-800 font-medium"
                 >
                   Reset
