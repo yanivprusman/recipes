@@ -1,0 +1,26 @@
+{
+  "hooks": {
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "timeout": 5,
+            "type": "http",
+            "url": "http://localhost:3041/api/feedback/session-end"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "timeout": 5,
+            "type": "http",
+            "url": "http://localhost:3041/api/feedback/response"
+          }
+        ]
+      }
+    ]
+  }
+}
