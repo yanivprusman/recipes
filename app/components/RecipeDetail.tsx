@@ -30,6 +30,25 @@ function scaleQuantity(quantity: string, factor: number): string {
   return quantity.replace(match[1], display);
 }
 
+function formatScaled(n: number): string {
+  return n === Math.floor(n)
+    ? String(n)
+    : n.toFixed(2).replace(/0+$/, "").replace(/\.$/, "");
+}
+
+function scaleStepText(
+  text: string,
+  factor: number,
+  yieldAmount: number,
+  yieldUnit: string
+): string {
+  if (factor === 1) return text;
+  const pattern = new RegExp(`(${yieldAmount})(\\s*${yieldUnit})`, "g");
+  return text.replace(pattern, (_, _num, suffix) => {
+    return formatScaled(yieldAmount * factor) + suffix;
+  });
+}
+
 export default function RecipeDetail({ recipe, labels, dir }: Props) {
   const [ingredients, setIngredients] = useState(recipe.ingredients);
   const [steps, setSteps] = useState(recipe.steps);
@@ -248,7 +267,9 @@ export default function RecipeDetail({ recipe, labels, dir }: Props) {
                   className="cursor-pointer hover:bg-amber-50 rounded px-1 -mx-1 py-0.5 transition-colors"
                   title="Click to edit"
                 >
-                  {step}
+                  {recipe.yield
+                    ? scaleStepText(step, scaleFactor, recipe.yield.amount, recipe.yield.unit)
+                    : step}
                 </span>
               )}
             </li>
