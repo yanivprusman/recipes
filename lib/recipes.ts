@@ -6,11 +6,17 @@ export interface Ingredient {
   quantity: string;
 }
 
+export interface RecipeYield {
+  amount: number;
+  unit: string;
+}
+
 export interface Recipe {
   id: string;
   name: string;
   ingredients: Ingredient[];
   steps: string[];
+  yield?: RecipeYield;
   createdAt: string;
 }
 

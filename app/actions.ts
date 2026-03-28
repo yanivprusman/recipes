@@ -9,6 +9,8 @@ export async function createRecipe(formData: FormData) {
   const ingredientNames = formData.getAll("ingredient-name") as string[];
   const ingredientQtys = formData.getAll("ingredient-qty") as string[];
   const steps = formData.getAll("step") as string[];
+  const yieldAmount = formData.get("yield-amount") as string;
+  const yieldUnit = formData.get("yield-unit") as string;
 
   const ingredients = ingredientNames
     .map((n, i) => ({ name: n.trim(), quantity: (ingredientQtys[i] || "").trim() }))
@@ -20,7 +22,18 @@ export async function createRecipe(formData: FormData) {
     throw new Error("Name, at least one ingredient, and at least one step are required.");
   }
 
-  await addRecipe({ name: name.trim(), ingredients, steps: filteredSteps });
+  const recipeData: Parameters<typeof addRecipe>[0] = {
+    name: name.trim(),
+    ingredients,
+    steps: filteredSteps,
+  };
+
+  const parsedAmount = parseFloat(yieldAmount);
+  if (parsedAmount > 0 && yieldUnit?.trim()) {
+    recipeData.yield = { amount: parsedAmount, unit: yieldUnit.trim() };
+  }
+
+  await addRecipe(recipeData);
   redirect("/");
 }
 

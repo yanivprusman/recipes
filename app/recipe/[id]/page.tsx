@@ -6,8 +6,24 @@ import RecipeDetail from "@/app/components/RecipeDetail";
 export const dynamic = "force-dynamic";
 
 const labels = {
-  en: { back: "Back to recipes", ingredients: "Ingredients", preparation: "Preparation" },
-  he: { back: "חזרה למתכונים", ingredients: "מצרכים", preparation: "הכנה" },
+  en: {
+    back: "Back to recipes",
+    ingredients: "Ingredients",
+    preparation: "Preparation",
+    yield: "Yield",
+    scaling: "Scale recipe",
+    portions: "Portions",
+    percentage: "Percentage",
+  },
+  he: {
+    back: "חזרה למתכונים",
+    ingredients: "מצרכים",
+    preparation: "הכנה",
+    yield: "תפוקה",
+    scaling: "שינוי כמות",
+    portions: "מנות",
+    percentage: "אחוזים",
+  },
 };
 
 function detectLanguage(text: string): "he" | "en" {
@@ -45,7 +61,14 @@ export default async function RecipePage({
 
       <RecipeDetail
         recipe={recipe}
-        labels={{ ingredients: l.ingredients, preparation: l.preparation }}
+        labels={{
+          ingredients: l.ingredients,
+          preparation: l.preparation,
+          yield: l.yield,
+          scaling: l.scaling,
+          portions: l.portions,
+          percentage: l.percentage,
+        }}
         dir={dir}
       />
     </main>

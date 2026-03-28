@@ -54,6 +54,27 @@ export default function AddRecipeForm() {
 
       <fieldset className="mb-4">
         <legend className="text-sm font-medium text-stone-600 mb-2">
+          Yield
+        </legend>
+        <div className="flex gap-2 items-center">
+          <input
+            name="yield-amount"
+            type="number"
+            min="0"
+            step="any"
+            placeholder="Amount"
+            className="w-24 rounded-lg border border-stone-300 px-3 py-2 text-stone-800 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none"
+          />
+          <input
+            name="yield-unit"
+            placeholder="Unit (e.g. balls, loaves)"
+            className="flex-1 rounded-lg border border-stone-300 px-3 py-2 text-stone-800 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none"
+          />
+        </div>
+      </fieldset>
+
+      <fieldset className="mb-4">
+        <legend className="text-sm font-medium text-stone-600 mb-2">
           Ingredients
         </legend>
         <div className="space-y-2">
