@@ -50,3 +50,15 @@ export async function addRecipe(
   await writeFile(DATA_FILE, JSON.stringify(recipes, null, 2), "utf-8");
   return recipe;
 }
+
+export async function updateRecipe(
+  id: string,
+  data: { ingredients: Ingredient[]; steps: string[] }
+): Promise<Recipe | undefined> {
+  const recipes = await getRecipes();
+  const index = recipes.findIndex((r) => r.id === id);
+  if (index === -1) return undefined;
+  recipes[index] = { ...recipes[index], ...data };
+  await writeFile(DATA_FILE, JSON.stringify(recipes, null, 2), "utf-8");
+  return recipes[index];
+}

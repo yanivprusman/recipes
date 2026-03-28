@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getRecipe } from "@/lib/recipes";
+import RecipeDetail from "@/app/components/RecipeDetail";
 
 export const dynamic = "force-dynamic";
 
@@ -42,35 +43,11 @@ export default async function RecipePage({
         {recipe.name}
       </h1>
 
-      <section className="mb-8">
-        <h2 className="text-lg font-semibold text-stone-700 mb-3">
-          {l.ingredients}
-        </h2>
-        <ul className="space-y-1.5">
-          {recipe.ingredients.map((ing, i) => (
-            <li key={i} className="flex gap-2 text-stone-700">
-              <span className="font-medium">{ing.quantity}</span>
-              <span>{ing.name}</span>
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      <section>
-        <h2 className="text-lg font-semibold text-stone-700 mb-3">
-          {l.preparation}
-        </h2>
-        <ol className="space-y-3">
-          {recipe.steps.map((step, i) => (
-            <li key={i} className="flex gap-3 text-stone-700">
-              <span className="text-amber-600 font-bold shrink-0">
-                {i + 1}.
-              </span>
-              <span>{step}</span>
-            </li>
-          ))}
-        </ol>
-      </section>
+      <RecipeDetail
+        recipe={recipe}
+        labels={{ ingredients: l.ingredients, preparation: l.preparation }}
+        dir={dir}
+      />
     </main>
   );
 }

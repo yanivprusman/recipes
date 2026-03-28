@@ -1,6 +1,7 @@
 "use server";
 
-import { addRecipe } from "@/lib/recipes";
+import { addRecipe, updateRecipe } from "@/lib/recipes";
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 export async function createRecipe(formData: FormData) {
@@ -21,4 +22,17 @@ export async function createRecipe(formData: FormData) {
 
   await addRecipe({ name: name.trim(), ingredients, steps: filteredSteps });
   redirect("/");
+}
+
+export async function updateRecipeAction(
+  id: string,
+  data: { ingredients: { name: string; quantity: string }[]; steps: string[] }
+) {
+  const result = await updateRecipe(id, data);
+  if (!result) {
+    throw new Error("Recipe not found");
+  }
+  revalidatePath(`/recipe/${id}`);
+  revalidatePath("/");
+  return result;
 }
