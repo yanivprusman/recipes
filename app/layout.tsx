@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { FeedbackChat } from '@automate/feedback-lib/FeedbackChat';
+import FeedbackChatMount from './FeedbackChatMount';
 
 export const metadata: Metadata = {
   title: "recipes",
@@ -15,7 +15,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>{children}
-        <FeedbackChat />
+        <FeedbackChatMount />
 </body>
     </html>
   );
