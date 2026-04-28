@@ -17,17 +17,33 @@ interface Props {
   dir: "ltr" | "rtl";
 }
 
+function parseLeadingNumber(s: string): { value: number; raw: string } | null {
+  const mixedMatch = s.match(/^(\d+(?:[.,]\d+)?)\s+(\d+)\/(\d+)/);
+  if (mixedMatch) {
+    const whole = parseFloat(mixedMatch[1].replace(",", "."));
+    const num = parseInt(mixedMatch[2]);
+    const den = parseInt(mixedMatch[3]);
+    if (den > 0) return { value: whole + num / den, raw: mixedMatch[0] };
+  }
+  const fracMatch = s.match(/^(\d+)\/(\d+)/);
+  if (fracMatch) {
+    const num = parseInt(fracMatch[1]);
+    const den = parseInt(fracMatch[2]);
+    if (den > 0) return { value: num / den, raw: fracMatch[0] };
+  }
+  const decMatch = s.match(/^(\d+(?:[.,]\d+)?)/);
+  if (decMatch) {
+    return { value: parseFloat(decMatch[1].replace(",", ".")), raw: decMatch[1] };
+  }
+  return null;
+}
+
 function scaleQuantity(quantity: string, factor: number): string {
   if (factor === 1) return quantity;
-  const match = quantity.match(/^(\d+(?:[.,]\d+)?)/);
-  if (!match) return quantity;
-  const original = parseFloat(match[1].replace(",", "."));
-  const scaled = original * factor;
-  const display =
-    scaled === Math.floor(scaled)
-      ? String(scaled)
-      : scaled.toFixed(2).replace(/0+$/, "").replace(/\.$/, "");
-  return quantity.replace(match[1], display);
+  const parsed = parseLeadingNumber(quantity);
+  if (!parsed) return quantity;
+  const scaled = parsed.value * factor;
+  return quantity.replace(parsed.raw, formatScaled(scaled));
 }
 
 function formatScaled(n: number): string {
@@ -110,12 +126,12 @@ export default function RecipeDetail({ recipe, labels, dir }: Props) {
     let updatedIngredients = ingredients;
 
     if (qtyChanged && oldQty) {
-      const oldMatch = oldQty.match(/^(\d+(?:[.,]\d+)?)/);
-      const newMatch = newQty.match(/^(\d+(?:[.,]\d+)?)/);
+      const oldParsed = parseLeadingNumber(oldQty);
+      const newParsed = parseLeadingNumber(newQty);
 
-      if (oldMatch && newMatch) {
-        const oldVal = parseFloat(oldMatch[1].replace(",", "."));
-        const newVal = parseFloat(newMatch[1].replace(",", "."));
+      if (oldParsed && newParsed) {
+        const oldVal = oldParsed.value;
+        const newVal = newParsed.value;
 
         if (oldVal > 0 && newVal > 0 && oldVal !== newVal) {
           const ratio = newVal / oldVal;
