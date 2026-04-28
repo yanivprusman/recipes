@@ -100,12 +100,35 @@ export default function RecipeDetail({ recipe, labels, dir }: Props) {
 
   function commitIngredient(i: number) {
     setEditingIngredient(null);
-    if (
-      ingredients[i].name !== recipe.ingredients[i]?.name ||
-      ingredients[i].quantity !== recipe.ingredients[i]?.quantity
-    ) {
-      save(ingredients, steps);
+    const oldQty = recipe.ingredients[i]?.quantity;
+    const newQty = ingredients[i].quantity;
+    const nameChanged = ingredients[i].name !== recipe.ingredients[i]?.name;
+    const qtyChanged = newQty !== oldQty;
+
+    if (!nameChanged && !qtyChanged) return;
+
+    let updatedIngredients = ingredients;
+
+    if (qtyChanged && oldQty) {
+      const oldMatch = oldQty.match(/^(\d+(?:[.,]\d+)?)/);
+      const newMatch = newQty.match(/^(\d+(?:[.,]\d+)?)/);
+
+      if (oldMatch && newMatch) {
+        const oldVal = parseFloat(oldMatch[1].replace(",", "."));
+        const newVal = parseFloat(newMatch[1].replace(",", "."));
+
+        if (oldVal > 0 && newVal > 0 && oldVal !== newVal) {
+          const ratio = newVal / oldVal;
+          updatedIngredients = ingredients.map((ing, idx) => {
+            if (idx === i) return ing;
+            return { ...ing, quantity: scaleQuantity(ing.quantity, ratio) };
+          });
+          setIngredients(updatedIngredients);
+        }
+      }
     }
+
+    save(updatedIngredients, steps);
   }
 
   function handleStepKeyDown(e: React.KeyboardEvent, i: number) {
