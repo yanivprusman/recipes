@@ -25,7 +25,7 @@ export default async function Home() {
                 href={`/recipe/${recipe.id}`}
                 className="block bg-white border border-stone-200 rounded-xl px-5 py-4 hover:border-amber-400 hover:shadow-sm transition-all"
               >
-                <span className="text-lg font-medium text-stone-800">
+                <span dir="auto" className="block text-lg font-medium text-stone-800">
                   {recipe.name}
                 </span>
                 <span className="block text-sm text-stone-400 mt-1">

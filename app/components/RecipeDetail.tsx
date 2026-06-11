@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { updateRecipeAction } from "@/app/actions";
+import { updateRecipeAction, deleteRecipeAction } from "@/app/actions";
 import type { Recipe } from "@/lib/recipes";
 
 interface Props {
@@ -13,6 +13,10 @@ interface Props {
     scaling: string;
     portions: string;
     percentage: string;
+    deleteRecipe: string;
+    confirmDelete: string;
+    confirmYes: string;
+    confirmNo: string;
   };
   dir: "ltr" | "rtl";
 }
@@ -71,6 +75,8 @@ export default function RecipeDetail({ recipe, labels, dir }: Props) {
   const [editingIngredient, setEditingIngredient] = useState<number | null>(null);
   const [editingStep, setEditingStep] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const [scaleMode, setScaleMode] = useState<"portions" | "percentage">("portions");
   const [scaleInput, setScaleInput] = useState(
@@ -148,7 +154,7 @@ export default function RecipeDetail({ recipe, labels, dir }: Props) {
   }
 
   function handleStepKeyDown(e: React.KeyboardEvent, i: number) {
-    if (e.key === "Enter") {
+    if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       commitStep(i);
     } else if (e.key === "Escape") {
@@ -235,7 +241,14 @@ export default function RecipeDetail({ recipe, labels, dir }: Props) {
           {ingredients.map((ing, i) => (
             <li key={i} className="flex gap-2 text-stone-700">
               {editingIngredient === i ? (
-                <>
+                <span
+                  className="flex gap-2 flex-1"
+                  onBlur={(e) => {
+                    if (!e.currentTarget.contains(e.relatedTarget)) {
+                      commitIngredient(i);
+                    }
+                  }}
+                >
                   <input
                     autoFocus
                     value={ing.quantity}
@@ -244,7 +257,6 @@ export default function RecipeDetail({ recipe, labels, dir }: Props) {
                       updated[i] = { ...updated[i], quantity: e.target.value };
                       setIngredients(updated);
                     }}
-                    onBlur={() => commitIngredient(i)}
                     onKeyDown={(e) => handleIngredientKeyDown(e, i, "quantity")}
                     className="w-24 font-medium rounded border border-amber-400 px-1.5 py-0.5 text-stone-800 outline-none focus:ring-1 focus:ring-amber-500"
                   />
@@ -255,11 +267,10 @@ export default function RecipeDetail({ recipe, labels, dir }: Props) {
                       updated[i] = { ...updated[i], name: e.target.value };
                       setIngredients(updated);
                     }}
-                    onBlur={() => commitIngredient(i)}
                     onKeyDown={(e) => handleIngredientKeyDown(e, i, "name")}
                     className="flex-1 rounded border border-amber-400 px-1.5 py-0.5 text-stone-800 outline-none focus:ring-1 focus:ring-amber-500"
                   />
-                </>
+                </span>
               ) : (
                 <span
                   onClick={() => setEditingIngredient(i)}
@@ -288,8 +299,9 @@ export default function RecipeDetail({ recipe, labels, dir }: Props) {
                 {i + 1}.
               </span>
               {editingStep === i ? (
-                <input
+                <textarea
                   autoFocus
+                  rows={Math.max(2, Math.ceil(step.length / 60))}
                   value={step}
                   onChange={(e) => {
                     const updated = [...steps];
@@ -298,12 +310,12 @@ export default function RecipeDetail({ recipe, labels, dir }: Props) {
                   }}
                   onBlur={() => commitStep(i)}
                   onKeyDown={(e) => handleStepKeyDown(e, i)}
-                  className="flex-1 rounded border border-amber-400 px-1.5 py-0.5 text-stone-800 outline-none focus:ring-1 focus:ring-amber-500"
+                  className="flex-1 resize-y rounded border border-amber-400 px-1.5 py-0.5 text-stone-800 outline-none focus:ring-1 focus:ring-amber-500"
                 />
               ) : (
                 <span
                   onClick={() => setEditingStep(i)}
-                  className="cursor-pointer hover:bg-amber-50 rounded px-1 -mx-1 py-0.5 transition-colors"
+                  className="cursor-pointer whitespace-pre-wrap hover:bg-amber-50 rounded px-1 -mx-1 py-0.5 transition-colors"
                   title="Click to edit"
                 >
                   {recipe.yield
@@ -319,6 +331,46 @@ export default function RecipeDetail({ recipe, labels, dir }: Props) {
       {saving && (
         <p className="text-sm text-amber-600 mt-4">Saving...</p>
       )}
+
+      <section className="mt-12 pt-6 border-t border-stone-200">
+        {confirmingDelete ? (
+          <div className="flex gap-3 items-center flex-wrap">
+            <span className="text-sm text-stone-600">{labels.confirmDelete}</span>
+            <button
+              type="button"
+              disabled={deleting}
+              onClick={async () => {
+                setDeleting(true);
+                try {
+                  await deleteRecipeAction(recipe.id);
+                } catch {
+                  setDeleting(false);
+                  setConfirmingDelete(false);
+                }
+              }}
+              className="text-sm bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white px-3 py-1.5 rounded-lg font-medium transition-colors"
+            >
+              {labels.confirmYes}
+            </button>
+            <button
+              type="button"
+              disabled={deleting}
+              onClick={() => setConfirmingDelete(false)}
+              className="text-sm text-stone-500 hover:text-stone-700 px-2 py-1.5 font-medium"
+            >
+              {labels.confirmNo}
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setConfirmingDelete(true)}
+            className="text-sm text-stone-400 hover:text-red-600 font-medium transition-colors"
+          >
+            {labels.deleteRecipe}
+          </button>
+        )}
+      </section>
     </>
   );
 }

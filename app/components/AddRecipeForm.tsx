@@ -47,6 +47,7 @@ export default function AddRecipeForm() {
         <input
           name="name"
           required
+          dir="auto"
           className="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-stone-800 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none"
           placeholder="e.g. Spaghetti Bolognese"
         />
@@ -83,12 +84,14 @@ export default function AddRecipeForm() {
               <input
                 name="ingredient-name"
                 required
+                dir="auto"
                 placeholder="Ingredient"
                 className="flex-1 rounded-lg border border-stone-300 px-3 py-2 text-stone-800 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none"
               />
               <input
                 name="ingredient-qty"
                 required
+                dir="auto"
                 placeholder="Quantity"
                 className="w-32 rounded-lg border border-stone-300 px-3 py-2 text-stone-800 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none"
               />
@@ -119,15 +122,17 @@ export default function AddRecipeForm() {
         </legend>
         <div className="space-y-2">
           {steps.map((_, i) => (
-            <div key={i} className="flex gap-2 items-center">
-              <span className="text-stone-400 text-sm w-6 text-right shrink-0">
+            <div key={i} className="flex gap-2 items-start">
+              <span className="text-stone-400 text-sm w-6 text-right shrink-0 pt-2">
                 {i + 1}.
               </span>
-              <input
+              <textarea
                 name="step"
                 required
+                dir="auto"
+                rows={2}
                 placeholder={`Step ${i + 1}`}
-                className="flex-1 rounded-lg border border-stone-300 px-3 py-2 text-stone-800 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none"
+                className="flex-1 resize-y rounded-lg border border-stone-300 px-3 py-2 text-stone-800 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none"
               />
               {steps.length > 1 && (
                 <button

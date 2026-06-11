@@ -14,6 +14,10 @@ const labels = {
     scaling: "Scale recipe",
     portions: "Portions",
     percentage: "Percentage",
+    deleteRecipe: "Delete recipe",
+    confirmDelete: "Delete this recipe permanently?",
+    confirmYes: "Delete",
+    confirmNo: "Cancel",
   },
   he: {
     back: "חזרה למתכונים",
@@ -23,6 +27,10 @@ const labels = {
     scaling: "שינוי כמות",
     portions: "מנות",
     percentage: "אחוזים",
+    deleteRecipe: "מחיקת מתכון",
+    confirmDelete: "למחוק את המתכון לצמיתות?",
+    confirmYes: "מחק",
+    confirmNo: "ביטול",
   },
 };
 
@@ -68,6 +76,10 @@ export default async function RecipePage({
           scaling: l.scaling,
           portions: l.portions,
           percentage: l.percentage,
+          deleteRecipe: l.deleteRecipe,
+          confirmDelete: l.confirmDelete,
+          confirmYes: l.confirmYes,
+          confirmNo: l.confirmNo,
         }}
         dir={dir}
       />

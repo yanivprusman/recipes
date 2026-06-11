@@ -57,6 +57,14 @@ export async function addRecipe(
   return recipe;
 }
 
+export async function deleteRecipe(id: string): Promise<boolean> {
+  const recipes = await getRecipes();
+  const remaining = recipes.filter((r) => r.id !== id);
+  if (remaining.length === recipes.length) return false;
+  await writeFile(DATA_FILE, JSON.stringify(remaining, null, 2), "utf-8");
+  return true;
+}
+
 export async function updateRecipe(
   id: string,
   data: { ingredients: Ingredient[]; steps: string[] }

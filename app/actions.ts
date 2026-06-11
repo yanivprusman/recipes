@@ -1,6 +1,6 @@
 "use server";
 
-import { addRecipe, updateRecipe } from "@/lib/recipes";
+import { addRecipe, updateRecipe, deleteRecipe } from "@/lib/recipes";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -34,6 +34,15 @@ export async function createRecipe(formData: FormData) {
   }
 
   await addRecipe(recipeData);
+  redirect("/");
+}
+
+export async function deleteRecipeAction(id: string) {
+  const deleted = await deleteRecipe(id);
+  if (!deleted) {
+    throw new Error("Recipe not found");
+  }
+  revalidatePath("/");
   redirect("/");
 }
 
