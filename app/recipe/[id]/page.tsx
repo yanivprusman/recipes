@@ -14,6 +14,9 @@ const labels = {
     scaling: "Scale recipe",
     portions: "Portions",
     percentage: "Percentage",
+    reset: "Reset",
+    addIngredient: "Add ingredient",
+    addStep: "Add step",
     deleteRecipe: "Delete recipe",
     confirmDelete: "Delete this recipe permanently?",
     confirmYes: "Delete",
@@ -27,6 +30,9 @@ const labels = {
     scaling: "שינוי כמות",
     portions: "מנות",
     percentage: "אחוזים",
+    reset: "איפוס",
+    addIngredient: "הוספת מצרך",
+    addStep: "הוספת שלב",
     deleteRecipe: "מחיקת מתכון",
     confirmDelete: "למחוק את המתכון לצמיתות?",
     confirmYes: "מחק",
@@ -57,15 +63,12 @@ export default async function RecipePage({
   return (
     <main className="max-w-2xl mx-auto px-4 py-10" dir={dir} lang={lang}>
       <Link
+        data-id="back-to-recipes"
         href="/"
         className="text-sm text-amber-700 hover:text-amber-800 font-medium"
       >
         {dir === "rtl" ? "\u2192" : "\u2190"} {l.back}
       </Link>
-
-      <h1 className="text-3xl font-bold text-stone-800 mt-4 mb-8">
-        {recipe.name}
-      </h1>
 
       <RecipeDetail
         recipe={recipe}
@@ -76,12 +79,14 @@ export default async function RecipePage({
           scaling: l.scaling,
           portions: l.portions,
           percentage: l.percentage,
+          reset: l.reset,
+          addIngredient: l.addIngredient,
+          addStep: l.addStep,
           deleteRecipe: l.deleteRecipe,
           confirmDelete: l.confirmDelete,
           confirmYes: l.confirmYes,
           confirmNo: l.confirmNo,
         }}
-        dir={dir}
       />
     </main>
   );

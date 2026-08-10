@@ -48,7 +48,11 @@ export async function deleteRecipeAction(id: string) {
 
 export async function updateRecipeAction(
   id: string,
-  data: { ingredients: { name: string; quantity: string }[]; steps: string[] }
+  data: {
+    name?: string;
+    ingredients: { name: string; quantity: string }[];
+    steps: string[];
+  }
 ) {
   const result = await updateRecipe(id, data);
   if (!result) {

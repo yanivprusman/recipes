@@ -27,6 +27,7 @@ export default function AddRecipeForm() {
   if (!open) {
     return (
       <button
+        data-id="add-recipe-open"
         onClick={() => setOpen(true)}
         className="bg-amber-600 hover:bg-amber-700 text-white px-5 py-2.5 rounded-lg font-medium transition-colors"
       >
@@ -45,6 +46,7 @@ export default function AddRecipeForm() {
       <label className="block mb-4">
         <span className="text-sm font-medium text-stone-600">Recipe Name</span>
         <input
+          data-id="new-recipe-name"
           name="name"
           required
           dir="auto"
@@ -59,6 +61,7 @@ export default function AddRecipeForm() {
         </legend>
         <div className="flex gap-2 items-center">
           <input
+            data-id="new-yield-amount"
             name="yield-amount"
             type="number"
             min="0"
@@ -67,6 +70,7 @@ export default function AddRecipeForm() {
             className="w-24 rounded-lg border border-stone-300 px-3 py-2 text-stone-800 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none"
           />
           <input
+            data-id="new-yield-unit"
             name="yield-unit"
             placeholder="Unit (e.g. balls, loaves)"
             className="flex-1 rounded-lg border border-stone-300 px-3 py-2 text-stone-800 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none"
@@ -82,6 +86,7 @@ export default function AddRecipeForm() {
           {ingredients.map((_, i) => (
             <div key={i} className="flex gap-2 items-center">
               <input
+                data-id={`new-ingredient-name-${i}`}
                 name="ingredient-name"
                 required
                 dir="auto"
@@ -89,6 +94,7 @@ export default function AddRecipeForm() {
                 className="flex-1 rounded-lg border border-stone-300 px-3 py-2 text-stone-800 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none"
               />
               <input
+                data-id={`new-ingredient-qty-${i}`}
                 name="ingredient-qty"
                 required
                 dir="auto"
@@ -97,6 +103,7 @@ export default function AddRecipeForm() {
               />
               {ingredients.length > 1 && (
                 <button
+                  data-id={`new-remove-ingredient-${i}`}
                   type="button"
                   onClick={() => removeIngredient(i)}
                   className="text-stone-400 hover:text-red-500 text-lg px-1"
@@ -108,6 +115,7 @@ export default function AddRecipeForm() {
           ))}
         </div>
         <button
+          data-id="new-add-ingredient"
           type="button"
           onClick={addIngredient}
           className="mt-2 text-sm text-amber-700 hover:text-amber-800 font-medium"
@@ -127,6 +135,7 @@ export default function AddRecipeForm() {
                 {i + 1}.
               </span>
               <textarea
+                data-id={`new-step-${i}`}
                 name="step"
                 required
                 dir="auto"
@@ -136,6 +145,7 @@ export default function AddRecipeForm() {
               />
               {steps.length > 1 && (
                 <button
+                  data-id={`new-remove-step-${i}`}
                   type="button"
                   onClick={() => removeStep(i)}
                   className="text-stone-400 hover:text-red-500 text-lg px-1"
@@ -147,6 +157,7 @@ export default function AddRecipeForm() {
           ))}
         </div>
         <button
+          data-id="new-add-step"
           type="button"
           onClick={addStep}
           className="mt-2 text-sm text-amber-700 hover:text-amber-800 font-medium"
@@ -157,12 +168,14 @@ export default function AddRecipeForm() {
 
       <div className="flex gap-3">
         <button
+          data-id="save-recipe"
           type="submit"
           className="bg-amber-600 hover:bg-amber-700 text-white px-5 py-2.5 rounded-lg font-medium transition-colors"
         >
           Save Recipe
         </button>
         <button
+          data-id="cancel-add-recipe"
           type="button"
           onClick={() => {
             setOpen(false);

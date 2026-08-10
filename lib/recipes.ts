@@ -67,12 +67,18 @@ export async function deleteRecipe(id: string): Promise<boolean> {
 
 export async function updateRecipe(
   id: string,
-  data: { ingredients: Ingredient[]; steps: string[] }
+  data: { name?: string; ingredients: Ingredient[]; steps: string[] }
 ): Promise<Recipe | undefined> {
   const recipes = await getRecipes();
   const index = recipes.findIndex((r) => r.id === id);
   if (index === -1) return undefined;
-  recipes[index] = { ...recipes[index], ...data };
+  const { name, ingredients, steps } = data;
+  recipes[index] = {
+    ...recipes[index],
+    ...(name === undefined ? {} : { name }),
+    ingredients,
+    steps,
+  };
   await writeFile(DATA_FILE, JSON.stringify(recipes, null, 2), "utf-8");
   return recipes[index];
 }

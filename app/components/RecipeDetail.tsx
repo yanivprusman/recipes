@@ -13,12 +13,14 @@ interface Props {
     scaling: string;
     portions: string;
     percentage: string;
+    reset: string;
+    addIngredient: string;
+    addStep: string;
     deleteRecipe: string;
     confirmDelete: string;
     confirmYes: string;
     confirmNo: string;
   };
-  dir: "ltr" | "rtl";
 }
 
 function parseLeadingNumber(s: string): { value: number; raw: string } | null {
@@ -69,14 +71,41 @@ function scaleStepText(
   });
 }
 
-export default function RecipeDetail({ recipe, labels, dir }: Props) {
+function shiftSetAfterRemoval(set: Set<number>, removed: number): Set<number> {
+  const next = new Set<number>();
+  for (const idx of set) {
+    if (idx === removed) continue;
+    next.add(idx > removed ? idx - 1 : idx);
+  }
+  return next;
+}
+
+function toggledSet(set: Set<number>, i: number): Set<number> {
+  const next = new Set(set);
+  if (next.has(i)) {
+    next.delete(i);
+  } else {
+    next.add(i);
+  }
+  return next;
+}
+
+export default function RecipeDetail({ recipe, labels }: Props) {
+  const [name, setName] = useState(recipe.name);
   const [ingredients, setIngredients] = useState(recipe.ingredients);
   const [steps, setSteps] = useState(recipe.steps);
+  const [editingName, setEditingName] = useState(false);
   const [editingIngredient, setEditingIngredient] = useState<number | null>(null);
   const [editingStep, setEditingStep] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+
+  // Ephemeral cook-mode state: never persisted, resets on reload.
+  const [checkedIngredients, setCheckedIngredients] = useState<Set<number>>(
+    new Set()
+  );
+  const [doneSteps, setDoneSteps] = useState<Set<number>>(new Set());
 
   const [scaleMode, setScaleMode] = useState<"portions" | "percentage">("portions");
   const [scaleInput, setScaleInput] = useState(
@@ -92,12 +121,14 @@ export default function RecipeDetail({ recipe, labels, dir }: Props) {
   })();
 
   async function save(
+    newName: string,
     newIngredients: typeof ingredients,
     newSteps: typeof steps
   ) {
     setSaving(true);
     try {
       await updateRecipeAction(recipe.id, {
+        name: newName,
         ingredients: newIngredients,
         steps: newSteps,
       });
@@ -106,25 +137,55 @@ export default function RecipeDetail({ recipe, labels, dir }: Props) {
     }
   }
 
-  function handleIngredientKeyDown(
-    e: React.KeyboardEvent,
-    i: number,
-    field: "name" | "quantity"
-  ) {
+  function commitName() {
+    setEditingName(false);
+    const trimmed = name.trim();
+    if (!trimmed) {
+      setName(recipe.name);
+      return;
+    }
+    if (trimmed !== recipe.name) {
+      setName(trimmed);
+      save(trimmed, ingredients, steps);
+    }
+  }
+
+  function handleNameKeyDown(e: React.KeyboardEvent) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      commitName();
+    } else if (e.key === "Escape") {
+      setName(recipe.name);
+      setEditingName(false);
+    }
+  }
+
+  function handleIngredientKeyDown(e: React.KeyboardEvent, i: number) {
     if (e.key === "Enter") {
       e.preventDefault();
       commitIngredient(i);
     } else if (e.key === "Escape") {
       setIngredients(recipe.ingredients);
+      setCheckedIngredients(new Set());
       setEditingIngredient(null);
     }
   }
 
   function commitIngredient(i: number) {
     setEditingIngredient(null);
+
+    const current = ingredients[i];
+    if (!current) return;
+
+    // An ingredient cleared to nothing is a deletion.
+    if (!current.name.trim() && !current.quantity.trim()) {
+      removeIngredient(i);
+      return;
+    }
+
     const oldQty = recipe.ingredients[i]?.quantity;
-    const newQty = ingredients[i].quantity;
-    const nameChanged = ingredients[i].name !== recipe.ingredients[i]?.name;
+    const newQty = current.quantity;
+    const nameChanged = current.name !== recipe.ingredients[i]?.name;
     const qtyChanged = newQty !== oldQty;
 
     if (!nameChanged && !qtyChanged) return;
@@ -150,7 +211,20 @@ export default function RecipeDetail({ recipe, labels, dir }: Props) {
       }
     }
 
-    save(updatedIngredients, steps);
+    save(name, updatedIngredients, steps);
+  }
+
+  function removeIngredient(i: number) {
+    const updated = ingredients.filter((_, idx) => idx !== i);
+    setIngredients(updated);
+    setCheckedIngredients(shiftSetAfterRemoval(checkedIngredients, i));
+    setEditingIngredient(null);
+    save(name, updated, steps);
+  }
+
+  function addIngredient() {
+    setIngredients([...ingredients, { name: "", quantity: "" }]);
+    setEditingIngredient(ingredients.length);
   }
 
   function handleStepKeyDown(e: React.KeyboardEvent, i: number) {
@@ -159,19 +233,59 @@ export default function RecipeDetail({ recipe, labels, dir }: Props) {
       commitStep(i);
     } else if (e.key === "Escape") {
       setSteps(recipe.steps);
+      setDoneSteps(new Set());
       setEditingStep(null);
     }
   }
 
   function commitStep(i: number) {
     setEditingStep(null);
-    if (steps[i] !== recipe.steps[i]) {
-      save(ingredients, steps);
+    if (!steps[i]?.trim()) {
+      removeStep(i);
+      return;
     }
+    if (steps[i] !== recipe.steps[i]) {
+      save(name, ingredients, steps);
+    }
+  }
+
+  function removeStep(i: number) {
+    const updated = steps.filter((_, idx) => idx !== i);
+    setSteps(updated);
+    setDoneSteps(shiftSetAfterRemoval(doneSteps, i));
+    setEditingStep(null);
+    save(name, ingredients, updated);
+  }
+
+  function addStep() {
+    setSteps([...steps, ""]);
+    setEditingStep(steps.length);
   }
 
   return (
     <>
+      {editingName ? (
+        <input
+          data-id="recipe-name-input"
+          autoFocus
+          dir="auto"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onBlur={commitName}
+          onKeyDown={handleNameKeyDown}
+          className="w-full text-3xl font-bold text-stone-800 mt-4 mb-8 rounded border border-amber-400 px-2 py-1 outline-none focus:ring-1 focus:ring-amber-500"
+        />
+      ) : (
+        <h1
+          data-id="recipe-name"
+          onClick={() => setEditingName(true)}
+          title="Click to edit"
+          className="text-3xl font-bold text-stone-800 mt-4 mb-8 cursor-pointer hover:bg-amber-50 rounded px-2 py-1 -mx-2 transition-colors"
+        >
+          {name}
+        </h1>
+      )}
+
       {recipe.yield && (
         <section className="mb-6">
           <p className="text-sm text-stone-500 mb-3">
@@ -182,6 +296,7 @@ export default function RecipeDetail({ recipe, labels, dir }: Props) {
           <div className="flex gap-2 items-center flex-wrap text-sm text-stone-500">
             <span>{labels.scaling}:</span>
             <select
+              data-id="scale-mode"
               value={scaleMode}
               onChange={(e) => {
                 const mode = e.target.value as "portions" | "percentage";
@@ -190,12 +305,13 @@ export default function RecipeDetail({ recipe, labels, dir }: Props) {
                   mode === "portions" ? String(recipe.yield!.amount) : "100"
                 );
               }}
-              className="rounded border border-stone-200 px-1.5 py-1 text-sm text-stone-600 bg-white focus:border-stone-400 focus:ring-1 focus:ring-stone-400 outline-none"
+              className="rounded border border-stone-200 px-1.5 py-1 text-sm text-stone-600 bg-white focus:border-stone-400 focus:ring-1 focus:ring-stone-400 outline-none cursor-pointer"
             >
               <option value="portions">{labels.portions}</option>
               <option value="percentage">{labels.percentage}</option>
             </select>
             <input
+              data-id="scale-input"
               type="number"
               min="0"
               step="any"
@@ -215,6 +331,7 @@ export default function RecipeDetail({ recipe, labels, dir }: Props) {
                   ×{scaleFactor.toFixed(2).replace(/0+$/, "").replace(/\.$/, "")}
                 </span>
                 <button
+                  data-id="scale-reset"
                   type="button"
                   onClick={() =>
                     setScaleInput(
@@ -223,9 +340,9 @@ export default function RecipeDetail({ recipe, labels, dir }: Props) {
                         : "100"
                     )
                   }
-                  className="text-stone-400 hover:text-stone-600"
+                  className="text-stone-400 hover:text-stone-600 cursor-pointer"
                 >
-                  Reset
+                  {labels.reset}
                 </button>
               </>
             )}
@@ -238,54 +355,95 @@ export default function RecipeDetail({ recipe, labels, dir }: Props) {
           {labels.ingredients}
         </h2>
         <ul className="space-y-1.5">
-          {ingredients.map((ing, i) => (
-            <li key={i} className="flex gap-2 text-stone-700">
-              {editingIngredient === i ? (
-                <span
-                  className="flex gap-2 flex-1"
-                  onBlur={(e) => {
-                    if (!e.currentTarget.contains(e.relatedTarget)) {
-                      commitIngredient(i);
-                    }
-                  }}
-                >
-                  <input
-                    autoFocus
-                    value={ing.quantity}
-                    onChange={(e) => {
-                      const updated = [...ingredients];
-                      updated[i] = { ...updated[i], quantity: e.target.value };
-                      setIngredients(updated);
+          {ingredients.map((ing, i) => {
+            const checked = checkedIngredients.has(i);
+            return (
+              <li key={i} className="flex gap-2 items-start text-stone-700">
+                <button
+                  data-id={`ingredient-check-${i}`}
+                  type="button"
+                  aria-pressed={checked}
+                  onClick={() =>
+                    setCheckedIngredients(toggledSet(checkedIngredients, i))
+                  }
+                  className={`mt-1.5 h-4 w-4 shrink-0 rounded-full border cursor-pointer transition-colors ${
+                    checked
+                      ? "bg-amber-500 border-amber-500"
+                      : "bg-white border-stone-300 hover:border-amber-500"
+                  }`}
+                />
+                {editingIngredient === i ? (
+                  <span
+                    className="flex gap-2 flex-1"
+                    onBlur={(e) => {
+                      if (!e.currentTarget.contains(e.relatedTarget)) {
+                        commitIngredient(i);
+                      }
                     }}
-                    onKeyDown={(e) => handleIngredientKeyDown(e, i, "quantity")}
-                    className="w-24 font-medium rounded border border-amber-400 px-1.5 py-0.5 text-stone-800 outline-none focus:ring-1 focus:ring-amber-500"
-                  />
-                  <input
-                    value={ing.name}
-                    onChange={(e) => {
-                      const updated = [...ingredients];
-                      updated[i] = { ...updated[i], name: e.target.value };
-                      setIngredients(updated);
-                    }}
-                    onKeyDown={(e) => handleIngredientKeyDown(e, i, "name")}
-                    className="flex-1 rounded border border-amber-400 px-1.5 py-0.5 text-stone-800 outline-none focus:ring-1 focus:ring-amber-500"
-                  />
-                </span>
-              ) : (
-                <span
-                  onClick={() => setEditingIngredient(i)}
-                  className="cursor-pointer hover:bg-amber-50 rounded px-1 -mx-1 py-0.5 transition-colors"
-                  title="Click to edit"
-                >
-                  <span className="font-medium">
-                    {scaleQuantity(ing.quantity, scaleFactor)}
-                  </span>{" "}
-                  {ing.name}
-                </span>
-              )}
-            </li>
-          ))}
+                  >
+                    <input
+                      data-id={`ingredient-qty-input-${i}`}
+                      autoFocus
+                      dir="auto"
+                      value={ing.quantity}
+                      onChange={(e) => {
+                        const updated = [...ingredients];
+                        updated[i] = { ...updated[i], quantity: e.target.value };
+                        setIngredients(updated);
+                      }}
+                      onKeyDown={(e) => handleIngredientKeyDown(e, i)}
+                      className="w-24 font-medium rounded border border-amber-400 px-1.5 py-0.5 text-stone-800 outline-none focus:ring-1 focus:ring-amber-500"
+                    />
+                    <input
+                      data-id={`ingredient-name-input-${i}`}
+                      dir="auto"
+                      value={ing.name}
+                      onChange={(e) => {
+                        const updated = [...ingredients];
+                        updated[i] = { ...updated[i], name: e.target.value };
+                        setIngredients(updated);
+                      }}
+                      onKeyDown={(e) => handleIngredientKeyDown(e, i)}
+                      className="flex-1 rounded border border-amber-400 px-1.5 py-0.5 text-stone-800 outline-none focus:ring-1 focus:ring-amber-500"
+                    />
+                    <button
+                      data-id={`remove-ingredient-${i}`}
+                      type="button"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => removeIngredient(i)}
+                      title="Remove ingredient"
+                      className="text-stone-400 hover:text-red-500 text-lg px-1 cursor-pointer"
+                    >
+                      ×
+                    </button>
+                  </span>
+                ) : (
+                  <span
+                    data-id={`ingredient-${i}`}
+                    onClick={() => setEditingIngredient(i)}
+                    className={`cursor-pointer hover:bg-amber-50 rounded px-1 -mx-1 py-0.5 transition-colors ${
+                      checked ? "line-through text-stone-400" : ""
+                    }`}
+                    title="Click to edit"
+                  >
+                    <span className="font-medium">
+                      {scaleQuantity(ing.quantity, scaleFactor)}
+                    </span>{" "}
+                    {ing.name}
+                  </span>
+                )}
+              </li>
+            );
+          })}
         </ul>
+        <button
+          data-id="add-ingredient"
+          type="button"
+          onClick={addIngredient}
+          className="mt-2 text-sm text-amber-700 hover:text-amber-800 font-medium cursor-pointer"
+        >
+          + {labels.addIngredient}
+        </button>
       </section>
 
       <section>
@@ -293,39 +451,84 @@ export default function RecipeDetail({ recipe, labels, dir }: Props) {
           {labels.preparation}
         </h2>
         <ol className="space-y-3">
-          {steps.map((step, i) => (
-            <li key={i} className="flex gap-3 text-stone-700">
-              <span className="text-amber-600 font-bold shrink-0">
-                {i + 1}.
-              </span>
-              {editingStep === i ? (
-                <textarea
-                  autoFocus
-                  rows={Math.max(2, Math.ceil(step.length / 60))}
-                  value={step}
-                  onChange={(e) => {
-                    const updated = [...steps];
-                    updated[i] = e.target.value;
-                    setSteps(updated);
-                  }}
-                  onBlur={() => commitStep(i)}
-                  onKeyDown={(e) => handleStepKeyDown(e, i)}
-                  className="flex-1 resize-y rounded border border-amber-400 px-1.5 py-0.5 text-stone-800 outline-none focus:ring-1 focus:ring-amber-500"
-                />
-              ) : (
-                <span
-                  onClick={() => setEditingStep(i)}
-                  className="cursor-pointer whitespace-pre-wrap hover:bg-amber-50 rounded px-1 -mx-1 py-0.5 transition-colors"
-                  title="Click to edit"
+          {steps.map((step, i) => {
+            const done = doneSteps.has(i);
+            return (
+              <li key={i} className="flex gap-3 text-stone-700">
+                <button
+                  data-id={`step-check-${i}`}
+                  type="button"
+                  aria-pressed={done}
+                  onClick={() => setDoneSteps(toggledSet(doneSteps, i))}
+                  title="Mark step as done"
+                  className={`font-bold shrink-0 self-start cursor-pointer transition-colors ${
+                    done
+                      ? "text-stone-300 line-through"
+                      : "text-amber-600 hover:text-amber-700"
+                  }`}
                 >
-                  {recipe.yield
-                    ? scaleStepText(step, scaleFactor, recipe.yield.amount, recipe.yield.unit)
-                    : step}
-                </span>
-              )}
-            </li>
-          ))}
+                  {i + 1}.
+                </button>
+                {editingStep === i ? (
+                  <span
+                    className="flex gap-2 flex-1"
+                    onBlur={(e) => {
+                      if (!e.currentTarget.contains(e.relatedTarget)) {
+                        commitStep(i);
+                      }
+                    }}
+                  >
+                    <textarea
+                      data-id={`step-input-${i}`}
+                      autoFocus
+                      dir="auto"
+                      rows={Math.max(2, Math.ceil(step.length / 60))}
+                      value={step}
+                      onChange={(e) => {
+                        const updated = [...steps];
+                        updated[i] = e.target.value;
+                        setSteps(updated);
+                      }}
+                      onKeyDown={(e) => handleStepKeyDown(e, i)}
+                      className="flex-1 resize-y rounded border border-amber-400 px-1.5 py-0.5 text-stone-800 outline-none focus:ring-1 focus:ring-amber-500"
+                    />
+                    <button
+                      data-id={`remove-step-${i}`}
+                      type="button"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => removeStep(i)}
+                      title="Remove step"
+                      className="self-start text-stone-400 hover:text-red-500 text-lg px-1 cursor-pointer"
+                    >
+                      ×
+                    </button>
+                  </span>
+                ) : (
+                  <span
+                    data-id={`step-${i}`}
+                    onClick={() => setEditingStep(i)}
+                    className={`cursor-pointer whitespace-pre-wrap hover:bg-amber-50 rounded px-1 -mx-1 py-0.5 transition-colors ${
+                      done ? "text-stone-400" : ""
+                    }`}
+                    title="Click to edit"
+                  >
+                    {recipe.yield
+                      ? scaleStepText(step, scaleFactor, recipe.yield.amount, recipe.yield.unit)
+                      : step}
+                  </span>
+                )}
+              </li>
+            );
+          })}
         </ol>
+        <button
+          data-id="add-step"
+          type="button"
+          onClick={addStep}
+          className="mt-3 text-sm text-amber-700 hover:text-amber-800 font-medium cursor-pointer"
+        >
+          + {labels.addStep}
+        </button>
       </section>
 
       {saving && (
@@ -337,6 +540,7 @@ export default function RecipeDetail({ recipe, labels, dir }: Props) {
           <div className="flex gap-3 items-center flex-wrap">
             <span className="text-sm text-stone-600">{labels.confirmDelete}</span>
             <button
+              data-id="confirm-delete"
               type="button"
               disabled={deleting}
               onClick={async () => {
@@ -348,24 +552,26 @@ export default function RecipeDetail({ recipe, labels, dir }: Props) {
                   setConfirmingDelete(false);
                 }
               }}
-              className="text-sm bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white px-3 py-1.5 rounded-lg font-medium transition-colors"
+              className="text-sm bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-3 py-1.5 rounded-lg font-medium transition-colors cursor-pointer"
             >
               {labels.confirmYes}
             </button>
             <button
+              data-id="cancel-delete"
               type="button"
               disabled={deleting}
               onClick={() => setConfirmingDelete(false)}
-              className="text-sm text-stone-500 hover:text-stone-700 px-2 py-1.5 font-medium"
+              className="text-sm text-stone-500 hover:text-stone-700 px-2 py-1.5 font-medium cursor-pointer"
             >
               {labels.confirmNo}
             </button>
           </div>
         ) : (
           <button
+            data-id="delete-recipe"
             type="button"
             onClick={() => setConfirmingDelete(true)}
-            className="text-sm text-stone-400 hover:text-red-600 font-medium transition-colors"
+            className="text-sm text-stone-400 hover:text-red-600 font-medium transition-colors cursor-pointer"
           >
             {labels.deleteRecipe}
           </button>
