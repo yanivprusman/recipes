@@ -38,6 +38,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -351,11 +352,25 @@ private fun DetailScreen(recipe: Recipe, dockBottom: Dp, onBack: () -> Unit, onS
 
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-            // hero: the cover photo with the bar over it, or just the bar on paper
-            Box(Modifier.fillMaxWidth().then(if (cover != null) Modifier.aspectRatio(16f / 10f) else Modifier.height(0.dp))) {
+            // hero: the cover photo with the bar over it (or the bar alone on paper); it
+            // scrolls away with the page — the system back gesture is always there.
+            Box(Modifier.fillMaxWidth().then(if (cover != null) Modifier.aspectRatio(16f / 10f) else Modifier)) {
                 if (cover != null) {
                     RemoteImage(cover, Modifier.fillMaxSize())
                     Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0f to Color.Black.copy(alpha = 0.35f), 0.4f to Color.Transparent)))
+                }
+                Row(
+                    Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.statusBars).padding(horizontal = 8.dp, vertical = 6.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Pill(onClick = onBack, dark = cover != null) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = str.recipes, modifier = Modifier.size(20.dp)) }
+                    Box {
+                        Pill(onClick = { menu = true }, dark = cover != null) { Icon(Icons.Default.MoreVert, contentDescription = null, modifier = Modifier.size(20.dp)) }
+                        DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                            DropdownMenuItem(text = { Text(str.edit) }, leadingIcon = { Icon(Icons.Default.Edit, null) }, onClick = { menu = false; onEdit() })
+                            DropdownMenuItem(text = { Text(str.delete, color = Danger) }, leadingIcon = { Icon(Icons.Default.Delete, null, tint = Danger) }, onClick = { menu = false; confirm = true })
+                        }
+                    }
                 }
             }
             RecipeDirection(recipe) {
@@ -403,21 +418,6 @@ private fun DetailScreen(recipe: Recipe, dockBottom: Dp, onBack: () -> Unit, onS
                     }
                     deleteError?.let { Spacer(Modifier.height(12.dp)); ErrorCard(it) { deleteError = null } }
                     Spacer(Modifier.height(120.dp + dockBottom))
-                }
-            }
-        }
-
-        // top bar: back + menu, over the photo
-        Row(
-            Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.statusBars).padding(horizontal = 8.dp, vertical = 6.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Pill(onClick = onBack, dark = cover != null) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = str.recipes, modifier = Modifier.size(20.dp)) }
-            Box {
-                Pill(onClick = { menu = true }, dark = cover != null) { Icon(Icons.Default.MoreVert, contentDescription = null, modifier = Modifier.size(20.dp)) }
-                DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                    DropdownMenuItem(text = { Text(str.edit) }, leadingIcon = { Icon(Icons.Default.Edit, null) }, onClick = { menu = false; onEdit() })
-                    DropdownMenuItem(text = { Text(str.delete, color = Danger) }, leadingIcon = { Icon(Icons.Default.Delete, null, tint = Danger) }, onClick = { menu = false; confirm = true })
                 }
             }
         }
@@ -556,7 +556,7 @@ private fun StepsScreen(recipe: Recipe, onBack: () -> Unit) {
         Box(Modifier.fillMaxSize().background(Dark)) {
             // stage: blurred cover behind everything, footage over it
             if (video != null) {
-                if (coverImage != null && !landscape) RemoteImage(coverImage, Modifier.fillMaxSize().alpha(0.35f))
+                if (coverImage != null && !landscape) RemoteImage(coverImage, Modifier.fillMaxSize().blur(36.dp).alpha(0.45f))
                 Footage(
                     url = video,
                     timeSec = playhead,
@@ -574,13 +574,13 @@ private fun StepsScreen(recipe: Recipe, onBack: () -> Unit) {
                     if (video == null && image != null) {
                         if (landscape) RemoteImage(image, Modifier.fillMaxSize())
                         else {
-                            RemoteImage(image, Modifier.fillMaxSize().alpha(0.35f))
+                            RemoteImage(image, Modifier.fillMaxSize().blur(36.dp).alpha(0.45f))
                             RemoteImage(image, Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.statusBars).padding(top = topBar).aspectRatio(16f / 9f), contentScale = ContentScale.Fit)
                         }
                     }
                     // scrim: text reads over anything
                     Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0.35f to Color.Transparent, 1f to Dark.copy(alpha = 0.92f))))
-                    val textTop = if (landscape || (video == null && image == null)) 0.dp else topBar + 24.dp
+                    val hasBand = !landscape && (video != null || image != null)
                     AnimatedVisibility(
                         visible = visible,
                         enter = fadeIn(tween(450)) + slideInVertically(tween(450)) { it / 14 },
@@ -590,7 +590,8 @@ private fun StepsScreen(recipe: Recipe, onBack: () -> Unit) {
                         SlideText(
                             s, recipe, str, narrator, api,
                             landscape = landscape,
-                            textTop = textTop,
+                            band = hasBand,
+                            topBar = topBar,
                             onNext = { scope.launch { pager.animateScrollToPage(1) } },
                             onStart = { scope.launch { pager.animateScrollToPage(0) } },
                             onBack = onBack,
@@ -636,17 +637,21 @@ private fun DarkPill(onClick: (() -> Unit)?, content: @Composable RowScope.() ->
 @Composable
 private fun SlideText(
     s: Slide, recipe: Recipe, str: Str, narrator: Narrator, api: RecipesApi,
-    landscape: Boolean, textTop: Dp,
+    landscape: Boolean, band: Boolean, topBar: Dp,
     onNext: () -> Unit, onStart: () -> Unit, onBack: () -> Unit,
 ) {
     val centered = s is Slide.Cover || s is Slide.End
     val pad = if (landscape) 48.dp else 24.dp
-    Box(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing).padding(horizontal = pad)) {
+    BoxWithConstraints(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
+        // the footage/photo band is 16:9 of the width, right under the top bar
+        val bandBottom = if (band) topBar + maxWidth * 9f / 16f else 0.dp
         Column(
-            Modifier.then(
-                if (centered) Modifier.align(Alignment.Center).padding(bottom = if (landscape) 0.dp else 60.dp)
-                else if (landscape) Modifier.align(Alignment.BottomStart).padding(bottom = 36.dp).fillMaxWidth(0.7f)
-                else Modifier.align(Alignment.TopStart).padding(top = textTop, bottom = 24.dp),
+            Modifier.padding(horizontal = pad).then(
+                if (centered) {
+                    if (band) Modifier.align(Alignment.TopCenter).padding(top = bandBottom).fillMaxHeight().wrapContentHeight(Alignment.CenterVertically)
+                    else Modifier.align(Alignment.Center)
+                } else if (landscape) Modifier.align(Alignment.BottomStart).padding(bottom = 36.dp).fillMaxWidth(0.7f)
+                else Modifier.align(Alignment.TopStart).padding(top = bandBottom + 22.dp, bottom = 24.dp).verticalScroll(rememberScrollState()),
             ),
             horizontalAlignment = if (centered) Alignment.CenterHorizontally else Alignment.Start,
         ) {

@@ -8,6 +8,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.unit.sp
 
 // ── Tokens: warm paper and ink, terracotta for the one action that matters ──
@@ -43,7 +44,9 @@ private val Colors = lightColorScheme(
 
 fun typography(font: FontFamily): Typography {
     val base = Typography()
-    fun TextStyle.f(weight: FontWeight = FontWeight.Normal) = copy(fontFamily = font, fontWeight = weight)
+    // Direction from the text itself: an English "6 ingredients" inside a Hebrew recipe's
+    // card reads left-to-right while still sitting on the card's right edge.
+    fun TextStyle.f(weight: FontWeight = FontWeight.Normal) = copy(fontFamily = font, fontWeight = weight, textDirection = TextDirection.Content)
     return Typography(
         displaySmall = base.displaySmall.f(FontWeight.Bold).copy(fontSize = 34.sp, lineHeight = 38.sp),
         headlineMedium = base.headlineMedium.f(FontWeight.Bold).copy(fontSize = 26.sp, lineHeight = 30.sp),
