@@ -102,3 +102,12 @@ export async function updateRecipe(
   await writeFile(DATA_FILE, JSON.stringify(recipes, null, 2), "utf-8");
   return recipes[index];
 }
+
+/** The phone's editor can change the yield; the web pages never do, so it is its own write. */
+export async function setRecipeYield(id: string, y: RecipeYield): Promise<void> {
+  const recipes = await getRecipes();
+  const index = recipes.findIndex((r) => r.id === id);
+  if (index === -1) return;
+  recipes[index] = { ...recipes[index], yield: y };
+  await writeFile(DATA_FILE, JSON.stringify(recipes, null, 2), "utf-8");
+}
