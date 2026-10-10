@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- warm paper: the app's background, also the launch window so nothing flashes -->
+    <color name="paper">#FFFBF7EF</color>
+    <color name="terracotta">#FFC2622E</color>
+</resources>

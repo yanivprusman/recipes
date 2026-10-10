@@ -1,4 +1,7 @@
 {
-  "description": "recipes application",
-  "icon": "FlaskConical"
+  "description": "recipes \u2014 family recipes with a scrubbable step mode; web + native Android app (mobile/)",
+  "icon": "FlaskConical",
+  "sharedLibs": [
+    "android-feedback-lib"
+  ]
 }
