@@ -18,6 +18,8 @@ const labels = {
     backToRecipe: "Back to the recipe",
     listen: "Listen",
     stop: "Stop",
+    narrationOn: "Narration on",
+    narrationOff: "Narration off",
   },
   he: {
     back: "למתכון",
@@ -31,6 +33,8 @@ const labels = {
     backToRecipe: "חזרה למתכון",
     listen: "השמעה",
     stop: "עצירה",
+    narrationOn: "קריינות פועלת",
+    narrationOff: "קריינות כבויה",
   },
 };
 

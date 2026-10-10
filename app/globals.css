@@ -197,6 +197,15 @@
 .sm-back { text-decoration: none; transition: background 0.2s; }
 .sm-back:hover { background: rgba(245, 181, 72, 0.35); }
 .sm-counter { font-variant-numeric: tabular-nums; color: var(--sm-muted); }
+.sm-bar-end { display: flex; align-items: center; gap: 0.5rem; pointer-events: auto; }
+.sm-speaker {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px; border-radius: 999px; border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(22, 14, 9, 0.45); backdrop-filter: blur(10px); color: var(--sm-muted);
+  cursor: pointer; transition: background 0.2s, color 0.2s;
+}
+.sm-speaker.on { color: var(--sm-acc); border-color: rgba(245, 181, 72, 0.45); }
+.sm-speaker:hover { background: rgba(255, 255, 255, 0.14); }
 .sm-progress {
   position: absolute;
   left: 0; right: 0; top: 0;

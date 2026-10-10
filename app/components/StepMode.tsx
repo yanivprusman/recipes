@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import type { Recipe, Segment } from "@/lib/recipes";
 
@@ -16,6 +16,8 @@ export interface StepModeLabels {
   backToRecipe: string;
   listen: string;
   stop: string;
+  narrationOn: string;
+  narrationOff: string;
 }
 
 interface Props {
@@ -35,6 +37,32 @@ function splitLead(text: string): { lead: string | null; body: string } {
 }
 
 interface SlideBase { id: string; image?: string; seg?: Segment; audio?: string }
+// Whether narration starts on its own: a per-browser preference, read through an external
+// store so the server-rendered page (always "on") hydrates without a mismatch.
+const NARRATE_KEY = "recipes.narrate";
+const NARRATE_EVENT = "recipes-narrate";
+function readNarrate() {
+  try {
+    return localStorage.getItem(NARRATE_KEY) !== "off";
+  } catch {
+    return true;
+  }
+}
+function subscribeNarrate(cb: () => void) {
+  window.addEventListener(NARRATE_EVENT, cb);
+  window.addEventListener("storage", cb);
+  return () => {
+    window.removeEventListener(NARRATE_EVENT, cb);
+    window.removeEventListener("storage", cb);
+  };
+}
+function writeNarrate(on: boolean) {
+  try {
+    localStorage.setItem(NARRATE_KEY, on ? "on" : "off");
+  } catch {}
+  window.dispatchEvent(new Event(NARRATE_EVENT));
+}
+
 type Slide =
   | (SlideBase & { kind: "cover" })
   | (SlideBase & { kind: "ingredients" })
@@ -48,6 +76,8 @@ export default function StepMode({ recipe, lang, labels }: Props) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [active, setActive] = useState(0);
   const [playing, setPlaying] = useState<string | null>(null);
+  // Narration plays on its own when a slide settles; the speaker in the bar turns it off.
+  const auto = useSyncExternalStore(subscribeNarrate, readNarrate, () => true);
 
   const stepImages = recipe.images?.steps ?? [];
   const stepSegs = recipe.video?.steps ?? [];
@@ -156,10 +186,44 @@ export default function StepMode({ recipe, lang, labels }: Props) {
       a.removeEventListener("pause", onEnd);
     };
   }, []);
+
+  const playSlide = (slide: Slide) => {
+    const a = audioRef.current;
+    if (!a || !slide.audio) return;
+    a.src = slide.audio;
+    a.currentTime = 0;
+    a.play().then(() => setPlaying(slide.id)).catch(() => {
+      // The browser wants a gesture first (desktop wheel-scroll gives none): play on the next one.
+      setPlaying(null);
+      const retry = () => {
+        document.removeEventListener("pointerdown", retry);
+        document.removeEventListener("keydown", retry);
+        if (slides[activeRef.current]?.id === slide.id && autoRef.current) {
+          a.play().then(() => setPlaying(slide.id)).catch(() => setPlaying(null));
+        }
+      };
+      document.addEventListener("pointerdown", retry, { once: true });
+      document.addEventListener("keydown", retry, { once: true });
+    });
+  };
+  const activeRef = useRef(active);
+  const autoRef = useRef(auto);
+  useEffect(() => {
+    activeRef.current = active;
+    autoRef.current = auto;
+  }, [active, auto]);
+
+  // A slide that has settled for a moment gets its narration; a drag straight through does not.
   useEffect(() => {
     const a = audioRef.current;
-    if (a && playing && playing !== slides[active]?.id) a.pause();
-  }, [active]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (!a) return;
+    if (playing && playing !== slides[active]?.id) a.pause();
+    if (!auto) return;
+    const slide = slides[active];
+    if (!slide?.audio || playing === slide.id) return;
+    const t = setTimeout(() => playSlide(slide), 450);
+    return () => clearTimeout(t);
+  }, [active, auto]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function toggleNarration(slide: Slide) {
     const a = audioRef.current;
@@ -168,9 +232,12 @@ export default function StepMode({ recipe, lang, labels }: Props) {
       a.pause();
       return;
     }
-    a.src = slide.audio;
-    a.currentTime = 0;
-    a.play().then(() => setPlaying(slide.id)).catch(() => setPlaying(null));
+    playSlide(slide);
+  }
+
+  function toggleAuto() {
+    writeNarrate(!auto);
+    if (auto) audioRef.current?.pause();
   }
 
   // Keep the screen on while cooking (phones dim within a minute otherwise).
@@ -239,8 +306,30 @@ export default function StepMode({ recipe, lang, labels }: Props) {
         <Link data-id="step-mode-back" href={`/recipe/${recipe.id}`} className="sm-back">
           <span aria-hidden="true">{dir === "rtl" ? "→" : "←"}</span> {labels.back}
         </Link>
-        <span data-id="step-mode-counter" className="sm-counter" dir="ltr" aria-live="polite">
-          {active + 1} / {n}
+        <span className="sm-bar-end">
+          {recipe.audio && (
+            <button
+              type="button"
+              data-id="step-mode-narration-toggle"
+              className={`sm-speaker${auto ? " on" : ""}`}
+              aria-pressed={auto}
+              aria-label={auto ? labels.narrationOn : labels.narrationOff}
+              title={auto ? labels.narrationOn : labels.narrationOff}
+              onClick={toggleAuto}
+            >
+              <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                <path d="M4 9v6h4l5 4V5L8 9H4z" fill="currentColor" />
+                {auto ? (
+                  <path d="M16 8.5a4.5 4.5 0 0 1 0 7M18.5 6a8 8 0 0 1 0 12" stroke="currentColor" strokeWidth="1.8" fill="none" strokeLinecap="round" />
+                ) : (
+                  <path d="M16 9l5 6M21 9l-5 6" stroke="currentColor" strokeWidth="1.8" fill="none" strokeLinecap="round" />
+                )}
+              </svg>
+            </button>
+          )}
+          <span data-id="step-mode-counter" className="sm-counter" dir="ltr" aria-live="polite">
+            {active + 1} / {n}
+          </span>
         </span>
         <div className="sm-progress" aria-hidden="true">
           <span style={{ transform: `scaleX(${progress})` }} />
