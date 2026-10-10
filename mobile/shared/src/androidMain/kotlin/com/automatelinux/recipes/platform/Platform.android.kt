@@ -73,6 +73,10 @@ private class AndroidNarrator : Narrator {
 
     override fun toggle(url: String) {
         if (playing == url) { stop(); return }
+        play(url)
+    }
+
+    override fun play(url: String) {
         stop()
         val p = MediaPlayer()
         runCatching {
@@ -109,6 +113,15 @@ actual fun KeepScreenOn() {
 }
 
 actual fun platformLanguage(): String = Locale.getDefault().language
+
+@Composable
+actual fun rememberBoolPref(key: String, default: Boolean): androidx.compose.runtime.MutableState<Boolean> {
+    val context = LocalContext.current
+    val prefs = remember(context) { context.getSharedPreferences("recipes", android.content.Context.MODE_PRIVATE) }
+    val state = remember(key) { mutableStateOf(prefs.getBoolean(key, default)) }
+    LaunchedEffect(state.value) { prefs.edit().putBoolean(key, state.value).apply() }
+    return state
+}
 
 @Composable
 actual fun isLandscape(): Boolean = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE

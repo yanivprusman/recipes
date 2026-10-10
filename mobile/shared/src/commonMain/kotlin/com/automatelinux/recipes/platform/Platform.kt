@@ -23,9 +23,14 @@ expect fun Footage(url: String, timeSec: Double, cover: Boolean, modifier: Modif
 /** Plays one narration clip at a time; [playing] is the url being played, or null. */
 interface Narrator {
     val playing: String?
+    fun play(url: String)
     fun toggle(url: String)
     fun stop()
 }
+
+/** A per-device on/off preference that survives restarts (a viewer's convenience, never shared state). */
+@Composable
+expect fun rememberBoolPref(key: String, default: Boolean): androidx.compose.runtime.MutableState<Boolean>
 
 @Composable
 expect fun rememberNarrator(): Narrator

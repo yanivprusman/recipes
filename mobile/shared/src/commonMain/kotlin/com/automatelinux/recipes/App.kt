@@ -22,6 +22,8 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.VolumeOff
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
@@ -56,6 +58,7 @@ import androidx.compose.ui.unit.sp
 import com.automatelinux.recipes.data.*
 import com.automatelinux.recipes.platform.*
 import com.automatelinux.recipes.ui.theme.*
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 // ── Strings: the chrome follows the phone's language; recipe text keeps its own ──
@@ -97,6 +100,8 @@ class Str(val he: Boolean) {
     val recipe = if (he) "למתכון" else "Recipe"
     val listen = if (he) "השמעה" else "Listen"
     val stop = if (he) "עצירה" else "Stop"
+    val narrationOn = if (he) "קריינות פועלת" else "Narration on"
+    val narrationOff = if (he) "קריינות כבויה" else "Narration off"
     val retry = if (he) "נסו שוב" else "Try again"
     val needed = if (he) "צריך שם, מצרך אחד ושלב אחד לפחות." else "A name, one ingredient and one step are needed."
     val saving = if (he) "שומר…" else "Saving…"
@@ -547,7 +552,16 @@ private fun StepsScreen(recipe: Recipe, onBack: () -> Unit) {
         val f = (pos - i).coerceIn(0f, 1f).toDouble()
         slides[i].segment?.let { seg -> playhead = seg[0] + f * (seg[1] - seg[0]) }
     }
-    LaunchedEffect(pager.currentPage) { narrator.stop() }
+    // Narration plays on its own once a page has settled (a drag straight through stays
+    // quiet); the speaker in the bar turns it off, and that choice is remembered.
+    var auto by rememberBoolPref("narrate", true)
+    LaunchedEffect(pager.settledPage, auto) {
+        narrator.stop()
+        if (!auto) return@LaunchedEffect
+        val url = api.url(slides[pager.settledPage].audio) ?: return@LaunchedEffect
+        delay(450)
+        narrator.play(url)
+    }
     val video = api.url(recipe.video?.src)
     val coverImage = api.url(recipe.images?.cover)
     val topBar = 56.dp
@@ -616,8 +630,20 @@ private fun StepsScreen(recipe: Recipe, onBack: () -> Unit) {
                         Spacer(Modifier.width(6.dp))
                         Text(str.recipe, style = MaterialTheme.typography.labelLarge)
                     }
-                    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
-                        DarkPill(onClick = null) { Text("${pager.currentPage + 1} / ${slides.size}", style = MaterialTheme.typography.labelLarge, color = DarkMuted) }
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        if (recipe.audio != null) {
+                            DarkPill(onClick = { auto = !auto; if (!auto) narrator.stop() }) {
+                                Icon(
+                                    if (auto) Icons.AutoMirrored.Filled.VolumeUp else Icons.AutoMirrored.Filled.VolumeOff,
+                                    contentDescription = if (auto) str.narrationOn else str.narrationOff,
+                                    tint = if (auto) Amber else DarkMuted,
+                                    modifier = Modifier.size(18.dp),
+                                )
+                            }
+                        }
+                        CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+                            DarkPill(onClick = null) { Text("${pager.currentPage + 1} / ${slides.size}", style = MaterialTheme.typography.labelLarge, color = DarkMuted) }
+                        }
                     }
                 }
             }
