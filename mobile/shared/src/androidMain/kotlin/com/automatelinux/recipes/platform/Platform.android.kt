@@ -80,6 +80,13 @@ private class AndroidNarrator : Narrator {
         stop()
         val p = MediaPlayer()
         runCatching {
+            // Media usage: the volume keys adjust it and it ducks like any other playback.
+            p.setAudioAttributes(
+                android.media.AudioAttributes.Builder()
+                    .setUsage(android.media.AudioAttributes.USAGE_MEDIA)
+                    .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SPEECH)
+                    .build(),
+            )
             p.setDataSource(url)
             p.setOnPreparedListener { it.start(); playing = url }
             p.setOnCompletionListener { stop() }
