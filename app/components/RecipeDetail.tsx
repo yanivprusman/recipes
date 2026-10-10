@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { updateRecipeAction, deleteRecipeAction } from "@/app/actions";
-import type { Recipe } from "@/lib/recipes";
+import type { Recipe, RecipeImages } from "@/lib/recipes";
 
 interface Props {
   recipe: Recipe;
@@ -94,6 +94,9 @@ export default function RecipeDetail({ recipe, labels }: Props) {
   const [name, setName] = useState(recipe.name);
   const [ingredients, setIngredients] = useState(recipe.ingredients);
   const [steps, setSteps] = useState(recipe.steps);
+  // Step photos travel with the steps: removing or adding a step must shift
+  // images.steps the same way, or every later photo lands on the wrong step.
+  const [images, setImages] = useState<RecipeImages | undefined>(recipe.images);
   const [editingName, setEditingName] = useState(false);
   const [editingIngredient, setEditingIngredient] = useState<number | null>(null);
   const [editingStep, setEditingStep] = useState<number | null>(null);
@@ -123,7 +126,8 @@ export default function RecipeDetail({ recipe, labels }: Props) {
   async function save(
     newName: string,
     newIngredients: typeof ingredients,
-    newSteps: typeof steps
+    newSteps: typeof steps,
+    newImages: RecipeImages | undefined = images
   ) {
     setSaving(true);
     try {
@@ -131,6 +135,7 @@ export default function RecipeDetail({ recipe, labels }: Props) {
         name: newName,
         ingredients: newIngredients,
         steps: newSteps,
+        ...(newImages === undefined ? {} : { images: newImages }),
       });
     } finally {
       setSaving(false);
@@ -254,12 +259,20 @@ export default function RecipeDetail({ recipe, labels }: Props) {
     setSteps(updated);
     setDoneSteps(shiftSetAfterRemoval(doneSteps, i));
     setEditingStep(null);
-    save(name, ingredients, updated);
+    let nextImages = images;
+    if (images?.steps) {
+      nextImages = { ...images, steps: images.steps.filter((_, idx) => idx !== i) };
+      setImages(nextImages);
+    }
+    save(name, ingredients, updated, nextImages);
   }
 
   function addStep() {
     setSteps([...steps, ""]);
     setEditingStep(steps.length);
+    if (images?.steps) {
+      setImages({ ...images, steps: [...images.steps, null] });
+    }
   }
 
   return (

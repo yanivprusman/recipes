@@ -11,12 +11,24 @@ export interface RecipeYield {
   unit: string;
 }
 
+/**
+ * Photos for step mode (/recipe/<id>/steps). Paths are site-relative
+ * (e.g. "/recipes/pizza-dough/knead.jpg", served from public/).
+ * `steps` is index-aligned with `Recipe.steps`; null = that step has no photo.
+ */
+export interface RecipeImages {
+  cover?: string;
+  ingredients?: string;
+  steps?: (string | null)[];
+}
+
 export interface Recipe {
   id: string;
   name: string;
   ingredients: Ingredient[];
   steps: string[];
   yield?: RecipeYield;
+  images?: RecipeImages;
   createdAt: string;
 }
 
@@ -67,17 +79,25 @@ export async function deleteRecipe(id: string): Promise<boolean> {
 
 export async function updateRecipe(
   id: string,
-  data: { name?: string; ingredients: Ingredient[]; steps: string[] }
+  data: {
+    name?: string;
+    ingredients: Ingredient[];
+    steps: string[];
+    // Sent by the editor whenever the recipe has photos, so that adding or
+    // removing a step keeps images.steps aligned with steps.
+    images?: RecipeImages;
+  }
 ): Promise<Recipe | undefined> {
   const recipes = await getRecipes();
   const index = recipes.findIndex((r) => r.id === id);
   if (index === -1) return undefined;
-  const { name, ingredients, steps } = data;
+  const { name, ingredients, steps, images } = data;
   recipes[index] = {
     ...recipes[index],
     ...(name === undefined ? {} : { name }),
     ingredients,
     steps,
+    ...(images === undefined ? {} : { images }),
   };
   await writeFile(DATA_FILE, JSON.stringify(recipes, null, 2), "utf-8");
   return recipes[index];

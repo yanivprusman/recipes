@@ -1,6 +1,7 @@
 "use server";
 
 import { addRecipe, updateRecipe, deleteRecipe } from "@/lib/recipes";
+import type { RecipeImages } from "@/lib/recipes";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -52,6 +53,7 @@ export async function updateRecipeAction(
     name?: string;
     ingredients: { name: string; quantity: string }[];
     steps: string[];
+    images?: RecipeImages;
   }
 ) {
   const result = await updateRecipe(id, data);
@@ -59,6 +61,7 @@ export async function updateRecipeAction(
     throw new Error("Recipe not found");
   }
   revalidatePath(`/recipe/${id}`);
+  revalidatePath(`/recipe/${id}/steps`);
   revalidatePath("/");
   return result;
 }

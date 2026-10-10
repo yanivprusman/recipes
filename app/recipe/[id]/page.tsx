@@ -21,6 +21,7 @@ const labels = {
     confirmDelete: "Delete this recipe permanently?",
     confirmYes: "Delete",
     confirmNo: "Cancel",
+    stepMode: "Step by step",
   },
   he: {
     back: "חזרה למתכונים",
@@ -37,6 +38,7 @@ const labels = {
     confirmDelete: "למחוק את המתכון לצמיתות?",
     confirmYes: "מחק",
     confirmNo: "ביטול",
+    stepMode: "שלב אחר שלב",
   },
 };
 
@@ -62,13 +64,23 @@ export default async function RecipePage({
 
   return (
     <main className="max-w-2xl mx-auto px-4 py-10" dir={dir} lang={lang}>
-      <Link
-        data-id="back-to-recipes"
-        href="/"
-        className="text-sm text-amber-700 hover:text-amber-800 font-medium"
-      >
-        {dir === "rtl" ? "\u2192" : "\u2190"} {l.back}
-      </Link>
+      <div className="flex items-center justify-between gap-4">
+        <Link
+          data-id="back-to-recipes"
+          href="/"
+          className="text-sm text-amber-700 hover:text-amber-800 font-medium"
+        >
+          {dir === "rtl" ? "\u2192" : "\u2190"} {l.back}
+        </Link>
+        <Link
+          data-id="step-mode"
+          href={`/recipe/${recipe.id}/steps`}
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-white bg-amber-600 hover:bg-amber-700 active:bg-amber-800 px-3.5 py-1.5 rounded-full transition-colors"
+        >
+          <span aria-hidden="true" className="inline-block h-2 w-2 rounded-full bg-amber-200" />
+          {l.stepMode}
+        </Link>
+      </div>
 
       <RecipeDetail
         recipe={recipe}

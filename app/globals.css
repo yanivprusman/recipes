@@ -1,3 +1,277 @@
 @import "tailwindcss";
 @source "../../../automateLinux/packages/feedback-lib/src";
 @source "../../../automateLinux/packages/feedback-lib-launcher/src";
+
+/* ---------------------------------------------------------------- step mode
+   /recipe/<id>/steps — one full-screen slide per step, scroll-snapped, the
+   photo as the backdrop and the text lighting up as each slide arrives.
+   Portrait (a phone held upright) shows the whole 16:9 photo at the top with
+   the text under it; landscape/desktop puts the text over the photo. */
+.sm {
+  --sm-bg: #1c1612;
+  --sm-ink: #fbf7ef;
+  --sm-muted: #d9cfbf;
+  --sm-acc: #f5b548;
+  position: fixed;
+  inset: 0;
+  background: var(--sm-bg);
+  color: var(--sm-ink);
+  font-synthesis: none;
+}
+.sm-scroller {
+  height: 100dvh;
+  overflow-y: auto;
+  scroll-snap-type: y mandatory;
+  overscroll-behavior-y: contain;
+  scrollbar-width: none;
+}
+.sm-scroller::-webkit-scrollbar { display: none; }
+
+.sm-slide {
+  position: relative;
+  height: 100dvh;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+  display: grid;
+  overflow: hidden;
+  isolation: isolate;
+}
+.sm-blur, .sm-photo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+  user-select: none;
+}
+.sm-blur {
+  filter: blur(28px) brightness(0.55) saturate(1.1);
+  transform: scale(1.25);
+}
+.sm-photo {
+  transform: scale(1.06);
+  transition: transform 1.4s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.sm-slide.in .sm-photo { transform: scale(1); }
+.sm-scrim {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(to top, rgba(22, 14, 9, 0.94) 0%, rgba(22, 14, 9, 0.78) 30%, rgba(22, 14, 9, 0.2) 58%, rgba(22, 14, 9, 0) 100%);
+}
+.sm-nophoto .sm-scrim {
+  background: radial-gradient(120% 90% at 50% 0%, #3a2a1c 0%, var(--sm-bg) 70%);
+}
+
+.sm-text {
+  position: relative;
+  z-index: 1;
+  align-self: end;
+  width: 100%;
+  max-width: 46rem;
+  padding: 0 1.5rem calc(2.5rem + env(safe-area-inset-bottom));
+  opacity: 0;
+  transform: translateY(22px);
+  transition: opacity 0.6s ease 0.1s, transform 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) 0.1s;
+}
+.sm-slide.in .sm-text { opacity: 1; transform: none; }
+.sm-text-center { justify-self: center; text-align: center; }
+/* a slide with no photo has nothing to anchor to the bottom: centre its text */
+.sm-nophoto { grid-template-rows: 1fr; }
+.sm-nophoto .sm-text { align-self: center; padding-top: calc(4.5rem + env(safe-area-inset-top)); }
+
+.sm-kicker {
+  color: var(--sm-acc);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  margin-bottom: 0.7rem;
+}
+.sm-kicker::before {
+  content: "";
+  display: inline-block;
+  width: 1.6rem;
+  height: 2px;
+  background: var(--sm-acc);
+  vertical-align: middle;
+  margin-inline-end: 0.7rem;
+  border-radius: 1px;
+}
+.sm-text-center .sm-kicker::before { display: none; }
+.sm-title {
+  font-size: clamp(2.25rem, 6vw, 4.5rem);
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+.sm-sub { color: var(--sm-muted); margin-top: 0.9rem; font-size: 1.05rem; }
+.sm-lead {
+  font-size: clamp(1.7rem, 3.2vw, 2.6rem);
+  font-weight: 700;
+  line-height: 1.1;
+  margin-bottom: 0.6rem;
+  text-wrap: balance;
+}
+.sm-body {
+  font-size: clamp(1.15rem, 1.9vw, 1.5rem);
+  line-height: 1.45;
+  color: var(--sm-ink);
+  text-wrap: pretty;
+}
+.sm-ingredients {
+  font-size: clamp(1.1rem, 1.8vw, 1.4rem);
+  line-height: 1.5;
+  display: grid;
+  gap: 0.35rem 2.5rem;
+}
+.sm-ingredients li { padding-inline-start: 1.1rem; position: relative; }
+.sm-ingredients li::before {
+  content: "";
+  position: absolute;
+  inset-inline-start: 0;
+  top: 0.72em;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--sm-acc);
+}
+.sm-ingredients b { font-weight: 600; }
+
+/* top bar: back link, counter, progress line */
+.sm-bar {
+  position: absolute;
+  inset: 0 0 auto 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: calc(0.9rem + env(safe-area-inset-top)) 1.25rem 0.9rem;
+  background: linear-gradient(to bottom, rgba(22, 14, 9, 0.7), rgba(22, 14, 9, 0));
+  pointer-events: none;
+}
+.sm-back, .sm-counter {
+  pointer-events: auto;
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 0.4rem 0.8rem;
+  border-radius: 999px;
+  background: rgba(22, 14, 9, 0.45);
+  backdrop-filter: blur(10px);
+  color: var(--sm-ink);
+}
+.sm-back { text-decoration: none; transition: background 0.2s; }
+.sm-back:hover { background: rgba(245, 181, 72, 0.35); }
+.sm-counter { font-variant-numeric: tabular-nums; color: var(--sm-muted); }
+.sm-progress {
+  position: absolute;
+  left: 0; right: 0; top: 0;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.12);
+}
+.sm-progress span {
+  display: block;
+  height: 100%;
+  background: var(--sm-acc);
+  transform-origin: left;
+  transition: transform 0.4s ease;
+}
+[dir="rtl"] .sm-progress span { transform-origin: right; }
+
+.sm-hint {
+  margin-top: 2.2rem;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--sm-muted);
+  font-size: 0.8rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  cursor: pointer;
+  background: none;
+  border: 0;
+}
+.sm-hint:hover { color: var(--sm-ink); }
+.sm-chevron {
+  width: 12px; height: 12px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(45deg);
+  animation: sm-bob 1.6s ease-in-out infinite;
+}
+@keyframes sm-bob {
+  0%, 100% { transform: translateY(0) rotate(45deg); opacity: 0.5; }
+  50% { transform: translateY(7px) rotate(45deg); opacity: 1; }
+}
+
+.sm-actions { display: flex; gap: 0.8rem; justify-content: center; flex-wrap: wrap; margin-top: 1.8rem; }
+.sm-btn {
+  display: inline-block;
+  padding: 0.8rem 1.4rem;
+  border-radius: 999px;
+  background: var(--sm-acc);
+  color: #2a1c0e;
+  font-weight: 600;
+  text-decoration: none;
+  border: 0;
+  cursor: pointer;
+  transition: filter 0.2s, transform 0.1s;
+}
+.sm-btn:hover { filter: brightness(1.08); }
+.sm-btn:active { transform: scale(0.98); }
+.sm-btn-ghost { background: rgba(255, 255, 255, 0.12); color: var(--sm-ink); }
+.sm-btn-ghost:hover { background: rgba(255, 255, 255, 0.2); filter: none; }
+
+/* landscape / desktop: text sits over the photo, start-aligned */
+@media (orientation: landscape) {
+  .sm-text { padding: 0 3.5rem calc(3rem + env(safe-area-inset-bottom)); }
+  .sm-text-center { padding-bottom: 14dvh; }
+  .sm-ingredients { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .sm-scrim {
+    background:
+      linear-gradient(to top, rgba(22, 14, 9, 0.9) 0%, rgba(22, 14, 9, 0.55) 35%, rgba(22, 14, 9, 0) 70%),
+      linear-gradient(to right, rgba(22, 14, 9, 0.55) 0%, rgba(22, 14, 9, 0) 55%);
+  }
+  [dir="rtl"] .sm-scrim {
+    background:
+      linear-gradient(to top, rgba(22, 14, 9, 0.9) 0%, rgba(22, 14, 9, 0.55) 35%, rgba(22, 14, 9, 0) 70%),
+      linear-gradient(to left, rgba(22, 14, 9, 0.55) 0%, rgba(22, 14, 9, 0) 55%);
+  }
+  .sm-blur { display: none; }
+}
+
+/* portrait (phone): the whole photo on top, text below it on the blurred backdrop */
+@media (orientation: portrait) {
+  .sm-slide { grid-template-rows: auto 1fr; }
+  .sm-photo {
+    position: relative;
+    inset: auto;
+    height: auto;
+    aspect-ratio: 16 / 9;
+    margin-top: calc(3.6rem + env(safe-area-inset-top));
+    object-fit: cover;
+    transform: scale(1);
+    transition: none;
+  }
+  .sm-scrim {
+    background: linear-gradient(to top, rgba(22, 14, 9, 0.5) 0%, rgba(22, 14, 9, 0) 45%);
+  }
+  .sm-text {
+    align-self: start;
+    padding-top: 1.6rem;
+    padding-bottom: calc(3rem + env(safe-area-inset-bottom));
+  }
+  .sm-cover .sm-text, .sm-end .sm-text { align-self: center; padding-top: 0; padding-bottom: 2rem; }
+  .sm-nophoto { grid-template-rows: 1fr; }
+  .sm-nophoto .sm-text { align-self: center; padding-top: calc(4.5rem + env(safe-area-inset-top)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sm-photo, .sm-text, .sm-progress span { transition: none; }
+  .sm-photo { transform: none; }
+  .sm-text { opacity: 1; transform: none; }
+  .sm-chevron { animation: none; }
+}

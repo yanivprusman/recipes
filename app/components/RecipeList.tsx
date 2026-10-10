@@ -37,16 +37,25 @@ export default function RecipeList({ recipes }: { recipes: Recipe[] }) {
               <Link
                 data-id={`recipe-card-${recipe.id}`}
                 href={`/recipe/${recipe.id}`}
-                className="block bg-white border border-stone-200 rounded-xl px-5 py-4 hover:border-amber-400 hover:shadow-sm transition-all"
+                className="flex items-center gap-4 bg-white border border-stone-200 rounded-xl px-5 py-4 hover:border-amber-400 hover:shadow-sm transition-all"
               >
-                <span dir="auto" className="block text-lg font-medium text-stone-800">
-                  {recipe.name}
+                <span className="min-w-0 flex-1">
+                  <span dir="auto" className="block text-lg font-medium text-stone-800">
+                    {recipe.name}
+                  </span>
+                  <span className="block text-sm text-stone-400 mt-1">
+                    {recipe.ingredients.length} ingredient{recipe.ingredients.length !== 1 && "s"}
+                    {" / "}
+                    {recipe.steps.length} step{recipe.steps.length !== 1 && "s"}
+                  </span>
                 </span>
-                <span className="block text-sm text-stone-400 mt-1">
-                  {recipe.ingredients.length} ingredient{recipe.ingredients.length !== 1 && "s"}
-                  {" / "}
-                  {recipe.steps.length} step{recipe.steps.length !== 1 && "s"}
-                </span>
+                {recipe.images?.cover && (
+                  <img
+                    src={recipe.images.cover}
+                    alt=""
+                    className="h-16 w-16 shrink-0 rounded-lg object-cover"
+                  />
+                )}
               </Link>
             </li>
           ))}
