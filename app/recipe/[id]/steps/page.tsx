@@ -16,6 +16,8 @@ const labels = {
     done: "Enjoy!",
     startOver: "Start over",
     backToRecipe: "Back to the recipe",
+    listen: "Listen",
+    stop: "Stop",
   },
   he: {
     back: "למתכון",
@@ -27,6 +29,8 @@ const labels = {
     done: "בתיאבון!",
     startOver: "מההתחלה",
     backToRecipe: "חזרה למתכון",
+    listen: "השמעה",
+    stop: "עצירה",
   },
 };
 

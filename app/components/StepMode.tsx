@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import type { Recipe } from "@/lib/recipes";
+import type { Recipe, Segment } from "@/lib/recipes";
 
 export interface StepModeLabels {
   back: string;
@@ -14,6 +14,8 @@ export interface StepModeLabels {
   done: string;
   startOver: string;
   backToRecipe: string;
+  listen: string;
+  stop: string;
 }
 
 interface Props {
@@ -32,32 +34,47 @@ function splitLead(text: string): { lead: string | null; body: string } {
   return { lead: m[1].trim(), body: m[2].trim() };
 }
 
+interface SlideBase { id: string; image?: string; seg?: Segment; audio?: string }
 type Slide =
-  | { kind: "cover"; id: string; image?: string }
-  | { kind: "ingredients"; id: string; image?: string }
-  | { kind: "step"; id: string; image?: string; index: number; text: string }
-  | { kind: "end"; id: string; image?: string };
+  | (SlideBase & { kind: "cover" })
+  | (SlideBase & { kind: "ingredients" })
+  | (SlideBase & { kind: "step"; index: number; text: string })
+  | (SlideBase & { kind: "end" });
 
 export default function StepMode({ recipe, lang, labels }: Props) {
   const dir = lang === "he" ? "rtl" : "ltr";
   const scrollerRef = useRef<HTMLDivElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
   const [active, setActive] = useState(0);
+  const [playing, setPlaying] = useState<string | null>(null);
 
   const stepImages = recipe.images?.steps ?? [];
+  const stepSegs = recipe.video?.steps ?? [];
+  const stepAudio = recipe.audio?.steps ?? [];
   const lastStepImage = [...stepImages].reverse().find((s) => s) ?? undefined;
   const slides: Slide[] = [
-    { kind: "cover", id: "cover", image: recipe.images?.cover },
-    { kind: "ingredients", id: "ingredients", image: recipe.images?.ingredients },
+    { kind: "cover", id: "cover", image: recipe.images?.cover, seg: recipe.video?.cover, audio: recipe.audio?.cover },
+    {
+      kind: "ingredients",
+      id: "ingredients",
+      image: recipe.images?.ingredients,
+      seg: recipe.video?.ingredients,
+      audio: recipe.audio?.ingredients,
+    },
     ...recipe.steps.map((text, index) => ({
       kind: "step" as const,
       id: `step-${index + 1}`,
       image: stepImages[index] ?? undefined,
+      seg: stepSegs[index] ?? undefined,
+      audio: stepAudio[index] ?? undefined,
       index,
       text,
     })),
-    { kind: "end", id: "end", image: lastStepImage ?? recipe.images?.cover },
+    { kind: "end", id: "end", image: lastStepImage ?? recipe.images?.cover, seg: recipe.video?.end },
   ];
   const n = slides.length;
+  const video = recipe.video;
 
   // Which slide is on screen: lights its text up (and replays the entrance
   // every time it comes back into view), drives the counter and the URL hash.
@@ -90,6 +107,72 @@ export default function StepMode({ recipe, lang, labels }: Props) {
     return () => io.disconnect();
   }, [recipe.id]);
 
+  // Scrubbing: the scroll position IS the footage's playhead. Each slide is one
+  // viewport tall, so scrollTop / height = slide index + fraction, and that fraction
+  // walks through the slide's segment of the footage. Dragging up rewinds.
+  const segs = slides.map((s) => s.seg ?? null);
+  const segKey = JSON.stringify(segs);
+  useEffect(() => {
+    const root = scrollerRef.current;
+    const v = videoRef.current;
+    if (!root || !v || !video) return;
+    let raf = 0;
+    let lastT = -1;
+    const scrub = () => {
+      raf = 0;
+      const h = root.clientHeight || 1;
+      const pos = root.scrollTop / h;
+      const i = Math.min(segs.length - 1, Math.max(0, Math.floor(pos)));
+      const f = Math.min(1, Math.max(0, pos - i));
+      const seg = segs[i];
+      if (!seg) return; // a slide without footage keeps the last frame
+      const t = seg[0] + f * (seg[1] - seg[0]);
+      if (Math.abs(t - lastT) < 1 / 60) return;
+      lastT = t;
+      if (v.readyState >= 1) v.currentTime = t;
+    };
+    const onScroll = () => {
+      if (!raf) raf = requestAnimationFrame(scrub);
+    };
+    root.addEventListener("scroll", onScroll, { passive: true });
+    v.addEventListener("loadedmetadata", scrub);
+    if (v.readyState >= 1) scrub();
+    return () => {
+      root.removeEventListener("scroll", onScroll);
+      v.removeEventListener("loadedmetadata", scrub);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, [recipe.id, video, segKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Narration: one shared player; leaving the slide stops it.
+  useEffect(() => {
+    const a = audioRef.current;
+    if (!a) return;
+    const onEnd = () => setPlaying(null);
+    a.addEventListener("ended", onEnd);
+    a.addEventListener("pause", onEnd);
+    return () => {
+      a.removeEventListener("ended", onEnd);
+      a.removeEventListener("pause", onEnd);
+    };
+  }, []);
+  useEffect(() => {
+    const a = audioRef.current;
+    if (a && playing && playing !== slides[active]?.id) a.pause();
+  }, [active]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function toggleNarration(slide: Slide) {
+    const a = audioRef.current;
+    if (!a || !slide.audio) return;
+    if (playing === slide.id) {
+      a.pause();
+      return;
+    }
+    a.src = slide.audio;
+    a.currentTime = 0;
+    a.play().then(() => setPlaying(slide.id)).catch(() => setPlaying(null));
+  }
+
   // Keep the screen on while cooking (phones dim within a minute otherwise).
   useEffect(() => {
     let lock: WakeLockSentinel | null = null;
@@ -118,8 +201,40 @@ export default function StepMode({ recipe, lang, labels }: Props) {
   const stepCount = recipe.steps.length;
   const progress = n > 1 ? active / (n - 1) : 1;
 
+  const listenButton = (s: Slide) =>
+    s.audio ? (
+      <button
+        type="button"
+        data-id={`step-mode-listen-${s.id}`}
+        className={`sm-listen${playing === s.id ? " on" : ""}`}
+        aria-pressed={playing === s.id}
+        onClick={() => toggleNarration(s)}
+      >
+        <span className="sm-listen-icon" aria-hidden="true" />
+        {playing === s.id ? labels.stop : labels.listen}
+      </button>
+    ) : null;
+
   return (
-    <div className="sm" dir={dir} lang={lang}>
+    <div className={`sm${video ? " sm-has-video" : ""}`} dir={dir} lang={lang}>
+      {video && (
+        <div className="sm-stage" aria-hidden="true">
+          {recipe.images?.cover && <img className="sm-stage-blur" src={recipe.images.cover} alt="" />}
+          <video
+            ref={videoRef}
+            className="sm-video"
+            src={video.src}
+            poster={recipe.images?.cover}
+            muted
+            playsInline
+            preload="auto"
+            disablePictureInPicture
+            data-id="step-mode-footage"
+          />
+        </div>
+      )}
+      <audio ref={audioRef} preload="none" data-id="step-mode-narration" />
+
       <header className="sm-bar">
         <Link data-id="step-mode-back" href={`/recipe/${recipe.id}`} className="sm-back">
           <span aria-hidden="true">{dir === "rtl" ? "→" : "←"}</span> {labels.back}
@@ -188,6 +303,7 @@ export default function StepMode({ recipe, lang, labels }: Props) {
                     </li>
                   ))}
                 </ul>
+                {listenButton(s)}
               </div>
             )}
 
@@ -200,6 +316,7 @@ export default function StepMode({ recipe, lang, labels }: Props) {
                   </p>
                   {lead && <h2 className="sm-lead">{lead}</h2>}
                   <p className="sm-body">{body}</p>
+                  {listenButton(s)}
                 </div>
               );
             })()}

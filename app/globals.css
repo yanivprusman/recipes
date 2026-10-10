@@ -64,6 +64,38 @@
   background: radial-gradient(120% 90% at 50% 0%, #3a2a1c 0%, var(--sm-bg) 70%);
 }
 
+/* footage: one fixed stage behind the slides; the scroll position is its playhead.
+   The slides keep their scrim and text and drop their own photos. */
+.sm-stage { position: absolute; inset: 0; overflow: hidden; }
+.sm-stage-blur {
+  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+  filter: blur(28px) brightness(0.55) saturate(1.1); transform: scale(1.25);
+}
+.sm-video {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  object-fit: cover; background: #000; pointer-events: none;
+}
+.sm-has-video .sm-photo, .sm-has-video .sm-blur { display: none; }
+.sm-has-video .sm-scroller { position: relative; }
+
+/* narration */
+.sm-listen {
+  display: inline-flex; align-items: center; gap: 0.55rem;
+  margin-top: 1.1rem; padding: 0.5rem 0.95rem 0.5rem 0.75rem;
+  border-radius: 999px; border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.1); color: var(--sm-ink);
+  font-size: 0.9rem; font-weight: 600; cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+.sm-listen:hover { background: rgba(255, 255, 255, 0.18); }
+.sm-listen.on { background: rgba(245, 181, 72, 0.22); border-color: rgba(245, 181, 72, 0.6); }
+.sm-listen-icon {
+  width: 0; height: 0; border-style: solid;
+  border-width: 6px 0 6px 10px; border-color: transparent transparent transparent var(--sm-acc);
+}
+.sm-listen.on .sm-listen-icon { width: 10px; height: 10px; border: 0; background: var(--sm-acc); border-radius: 2px; }
+[dir="rtl"] .sm-listen-icon { transform: scaleX(-1); }
+
 .sm-text {
   position: relative;
   z-index: 1;
@@ -240,7 +272,7 @@
       linear-gradient(to top, rgba(22, 14, 9, 0.9) 0%, rgba(22, 14, 9, 0.55) 35%, rgba(22, 14, 9, 0) 70%),
       linear-gradient(to left, rgba(22, 14, 9, 0.55) 0%, rgba(22, 14, 9, 0) 55%);
   }
-  .sm-blur { display: none; }
+  .sm-blur, .sm-stage-blur { display: none; }
 }
 
 /* portrait (phone): the whole photo on top, text below it on the blurred backdrop */
@@ -265,6 +297,13 @@
     padding-bottom: calc(3rem + env(safe-area-inset-bottom));
   }
   .sm-cover .sm-text, .sm-end .sm-text { align-self: center; padding-top: 0; padding-bottom: 2rem; }
+  /* the footage takes the photo's place: full width, 16:9, under the top bar */
+  .sm-video {
+    inset: auto 0 auto 0; top: calc(3.6rem + env(safe-area-inset-top));
+    height: auto; aspect-ratio: 16 / 9;
+  }
+  .sm-has-video .sm-slide { grid-template-rows: calc(3.6rem + env(safe-area-inset-top) + 56.25vw) 1fr; }
+  .sm-has-video .sm-slide > .sm-text { grid-row: 2; }
   .sm-nophoto { grid-template-rows: 1fr; }
   .sm-nophoto .sm-text { align-self: center; padding-top: calc(4.5rem + env(safe-area-inset-top)); }
 }

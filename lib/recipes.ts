@@ -1,26 +1,9 @@
 import { readFile, writeFile, mkdir } from "fs/promises";
 import { join } from "path";
+import type { RecipeAudio, RecipeImages, RecipeVideo, RecipeYield, Ingredient } from "@/lib/recipe-media";
 
-export interface Ingredient {
-  name: string;
-  quantity: string;
-}
-
-export interface RecipeYield {
-  amount: number;
-  unit: string;
-}
-
-/**
- * Photos for step mode (/recipe/<id>/steps). Paths are site-relative
- * (e.g. "/recipes/pizza-dough/knead.jpg", served from public/).
- * `steps` is index-aligned with `Recipe.steps`; null = that step has no photo.
- */
-export interface RecipeImages {
-  cover?: string;
-  ingredients?: string;
-  steps?: (string | null)[];
-}
+export { realignStepMedia } from "@/lib/recipe-media";
+export type { Ingredient, RecipeYield, RecipeImages, RecipeVideo, RecipeAudio, Segment, StepMedia } from "@/lib/recipe-media";
 
 export interface Recipe {
   id: string;
@@ -29,6 +12,8 @@ export interface Recipe {
   steps: string[];
   yield?: RecipeYield;
   images?: RecipeImages;
+  video?: RecipeVideo;
+  audio?: RecipeAudio;
   createdAt: string;
 }
 
@@ -83,21 +68,25 @@ export async function updateRecipe(
     name?: string;
     ingredients: Ingredient[];
     steps: string[];
-    // Sent by the editor whenever the recipe has photos, so that adding or
-    // removing a step keeps images.steps aligned with steps.
+    // Sent by the editor whenever the recipe has media, so that adding or
+    // removing a step keeps images/video/audio .steps aligned with steps.
     images?: RecipeImages;
+    video?: RecipeVideo;
+    audio?: RecipeAudio;
   }
 ): Promise<Recipe | undefined> {
   const recipes = await getRecipes();
   const index = recipes.findIndex((r) => r.id === id);
   if (index === -1) return undefined;
-  const { name, ingredients, steps, images } = data;
+  const { name, ingredients, steps, images, video, audio } = data;
   recipes[index] = {
     ...recipes[index],
     ...(name === undefined ? {} : { name }),
     ingredients,
     steps,
     ...(images === undefined ? {} : { images }),
+    ...(video === undefined ? {} : { video }),
+    ...(audio === undefined ? {} : { audio }),
   };
   await writeFile(DATA_FILE, JSON.stringify(recipes, null, 2), "utf-8");
   return recipes[index];

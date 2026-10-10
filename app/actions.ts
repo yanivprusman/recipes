@@ -1,7 +1,7 @@
 "use server";
 
 import { addRecipe, updateRecipe, deleteRecipe } from "@/lib/recipes";
-import type { RecipeImages } from "@/lib/recipes";
+import type { RecipeAudio, RecipeImages, RecipeVideo } from "@/lib/recipes";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -54,6 +54,8 @@ export async function updateRecipeAction(
     ingredients: { name: string; quantity: string }[];
     steps: string[];
     images?: RecipeImages;
+    video?: RecipeVideo;
+    audio?: RecipeAudio;
   }
 ) {
   const result = await updateRecipe(id, data);

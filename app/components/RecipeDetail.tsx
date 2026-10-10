@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { updateRecipeAction, deleteRecipeAction } from "@/app/actions";
-import type { Recipe, RecipeImages } from "@/lib/recipes";
+import type { Recipe } from "@/lib/recipes";
+import { realignStepMedia, type StepMedia } from "@/lib/recipe-media";
 
 interface Props {
   recipe: Recipe;
@@ -94,9 +95,14 @@ export default function RecipeDetail({ recipe, labels }: Props) {
   const [name, setName] = useState(recipe.name);
   const [ingredients, setIngredients] = useState(recipe.ingredients);
   const [steps, setSteps] = useState(recipe.steps);
-  // Step photos travel with the steps: removing or adding a step must shift
-  // images.steps the same way, or every later photo lands on the wrong step.
-  const [images, setImages] = useState<RecipeImages | undefined>(recipe.images);
+  // Step media travels with the steps: removing or adding a step must shift
+  // images/video/audio .steps the same way, or every later photo lands on the wrong step.
+  const [media, setMedia] = useState<StepMedia>({
+    ...(recipe.images ? { images: recipe.images } : {}),
+    ...(recipe.video ? { video: recipe.video } : {}),
+    ...(recipe.audio ? { audio: recipe.audio } : {}),
+  });
+  const hasMedia = Boolean(recipe.images || recipe.video || recipe.audio);
   const [editingName, setEditingName] = useState(false);
   const [editingIngredient, setEditingIngredient] = useState<number | null>(null);
   const [editingStep, setEditingStep] = useState<number | null>(null);
@@ -127,7 +133,7 @@ export default function RecipeDetail({ recipe, labels }: Props) {
     newName: string,
     newIngredients: typeof ingredients,
     newSteps: typeof steps,
-    newImages: RecipeImages | undefined = images
+    newMedia: StepMedia = media
   ) {
     setSaving(true);
     try {
@@ -135,7 +141,7 @@ export default function RecipeDetail({ recipe, labels }: Props) {
         name: newName,
         ingredients: newIngredients,
         steps: newSteps,
-        ...(newImages === undefined ? {} : { images: newImages }),
+        ...(hasMedia ? newMedia : {}),
       });
     } finally {
       setSaving(false);
@@ -259,20 +265,15 @@ export default function RecipeDetail({ recipe, labels }: Props) {
     setSteps(updated);
     setDoneSteps(shiftSetAfterRemoval(doneSteps, i));
     setEditingStep(null);
-    let nextImages = images;
-    if (images?.steps) {
-      nextImages = { ...images, steps: images.steps.filter((_, idx) => idx !== i) };
-      setImages(nextImages);
-    }
-    save(name, ingredients, updated, nextImages);
+    const nextMedia = hasMedia ? realignStepMedia(media, updated.length, i) : media;
+    setMedia(nextMedia);
+    save(name, ingredients, updated, nextMedia);
   }
 
   function addStep() {
     setSteps([...steps, ""]);
     setEditingStep(steps.length);
-    if (images?.steps) {
-      setImages({ ...images, steps: [...images.steps, null] });
-    }
+    if (hasMedia) setMedia(realignStepMedia(media, steps.length + 1));
   }
 
   return (

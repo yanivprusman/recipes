@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
-import { deleteRecipe, getRecipe, setRecipeYield, updateRecipe } from "@/lib/recipes";
+import { deleteRecipe, getRecipe, realignStepMedia, setRecipeYield, updateRecipe } from "@/lib/recipes";
 import { parseRecipeBody } from "@/lib/recipe-body";
 
 export const dynamic = "force-dynamic";
@@ -17,9 +17,8 @@ export async function GET(_req: Request, { params }: Ctx) {
 
 /**
  * PUT /api/recipes/:id → { name?, ingredients[], steps[], yield? } → Recipe.
- * Photos (images) are not editable from the phone yet; when the step count changes the
- * step photos are realigned by position like the web editor does on remove/add: the
- * caller sends `images.steps` already shifted, or omits `images` to leave them as they are.
+ * Media (images/video/audio) is not editable from the phone yet; when the step count
+ * changes, per-step media is realigned by position (padded/truncated).
  */
 export async function PUT(req: Request, { params }: Ctx) {
   const { id } = await params;
@@ -35,14 +34,7 @@ export async function PUT(req: Request, { params }: Ctx) {
     ...(body.hasName ? { name: body.name } : {}),
     ingredients: body.ingredients,
     steps: body.steps,
-    ...(existing.images?.steps && existing.images.steps.length !== body.steps.length
-      ? {
-          images: {
-            ...existing.images,
-            steps: body.steps.map((_, i) => existing.images!.steps![i] ?? null),
-          },
-        }
-      : {}),
+    ...(existing.steps.length !== body.steps.length ? realignStepMedia(existing, body.steps.length) : {}),
   });
   if (!updated) return NextResponse.json({ error: "Recipe not found" }, { status: 404 });
   // yield is not part of updateRecipe's contract (the web editor never changes it);
