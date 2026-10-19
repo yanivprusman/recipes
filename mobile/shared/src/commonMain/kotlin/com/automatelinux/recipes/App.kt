@@ -61,7 +61,7 @@ import com.automatelinux.recipes.ui.theme.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-// ── Strings: the chrome follows the phone's language; recipe text keeps its own ──
+// ── Strings: everything follows the language toggle (first set from the phone's language) ──
 class Str(val he: Boolean) {
     val recipes = if (he) "מתכונים" else "Recipes"
     val search = if (he) "חיפוש לפי שם או מצרך" else "Search by name or ingredient"
@@ -105,6 +105,11 @@ class Str(val he: Boolean) {
     val retry = if (he) "נסו שוב" else "Try again"
     val needed = if (he) "צריך שם, מצרך אחד ושלב אחד לפחות." else "A name, one ingredient and one step are needed."
     val saving = if (he) "שומר…" else "Saving…"
+    val translating = if (he) "מתרגם לעברית… חלקים שעוד לא תורגמו מוצגים במקור." else "Translating to English… parts not yet translated show in the original."
+    val translated = { from: String ->
+        if (he) "נכתב ב${if (from == "he") "עברית" else "אנגלית"} · תורגם אוטומטית"
+        else "Written in ${if (from == "he") "Hebrew" else "English"} · translated automatically"
+    }
 }
 
 private val LocalStr = staticCompositionLocalOf<Str> { error("no strings") }
@@ -118,20 +123,25 @@ private sealed class Nav {
     data class Edit(val id: String?) : Nav()
 }
 
-/** Everything the app knows: the list from the server, and how the last load went. */
-private class Store(private val api: RecipesApi) {
+/**
+ * Everything the app knows: the list from the server, and how the last load went. It outlives
+ * a language switch, so the screen keeps its recipe (and step mode its page) while the
+ * other language loads.
+ */
+private class Store {
     var recipes by mutableStateOf<List<Recipe>>(emptyList())
     var loading by mutableStateOf(false)
     var error by mutableStateOf<String?>(null)
     var loaded by mutableStateOf(false)
 
-    suspend fun refresh() {
-        loading = true
+    /** [quiet]: a background re-check while a translation is coming, no spinner. */
+    suspend fun refresh(api: RecipesApi, quiet: Boolean = false) {
+        if (!quiet) loading = true
         when (val r = api.list()) {
             is Result.Ok -> { recipes = r.value; error = null; loaded = true }
             is Result.Err -> error = r.message
         }
-        loading = false
+        if (!quiet) loading = false
     }
 
     fun byId(id: String) = recipes.firstOrNull { it.id == id }
@@ -144,15 +154,24 @@ fun App(
     dockBottom: Dp = 12.dp,
     onScreen: (String) -> Unit = {},
 ) {
-    val he = platformLanguage() == "he" || platformLanguage() == "iw"
+    var he by rememberBoolPref("hebrew", platformLanguage() == "he" || platformLanguage() == "iw")
     val str = remember(he) { Str(he) }
     val api = remember(baseUrl, he) { RecipesApi(baseUrl, he) }
-    val store = remember(api) { Store(api) }
+    val store = remember { Store() }
     val stack = remember { mutableStateListOf<Nav>(Nav.List) }
     val scope = rememberCoroutineScope()
     val top = stack.last()
+    val onLang: (Boolean) -> Unit = { he = it }
 
-    LaunchedEffect(Unit) { store.refresh() }
+    LaunchedEffect(api) { store.refresh(api) }
+    // A new or edited recipe is translated on the server within seconds; look again until it is.
+    val translating = store.recipes.any { it.view.pending }
+    LaunchedEffect(api, translating) {
+        while (translating) {
+            delay(2500)
+            store.refresh(api, quiet = true)
+        }
+    }
     LaunchedEffect(top) {
         onScreen(
             when (top) {
@@ -178,7 +197,8 @@ fun App(
                         dockBottom = dockBottom,
                         onOpen = { stack.add(Nav.Detail(it)) },
                         onAdd = { stack.add(Nav.Edit(null)) },
-                        onRefresh = { scope.launch { store.refresh() } },
+                        onRefresh = { scope.launch { store.refresh(api) } },
+                        onLang = onLang,
                     )
                     is Nav.Detail -> {
                         val recipe = store.byId(top.id)
@@ -192,20 +212,21 @@ fun App(
                                 onBack = { stack.removeAt(stack.lastIndex) },
                                 onSteps = { stack.add(Nav.Steps(recipe.id)) },
                                 onEdit = { stack.add(Nav.Edit(recipe.id)) },
-                                onDeleted = { scope.launch { store.refresh(); stack.removeAt(stack.lastIndex) } },
+                                onDeleted = { scope.launch { store.refresh(api); stack.removeAt(stack.lastIndex) } },
+                                onLang = onLang,
                             )
                         }
                     }
                     is Nav.Steps -> {
                         val recipe = store.byId(top.id)
-                        if (recipe != null) StepsScreen(recipe, onBack = { stack.removeAt(stack.lastIndex) })
+                        if (recipe != null) StepsScreen(recipe, onBack = { stack.removeAt(stack.lastIndex) }, onLang = onLang)
                     }
                     is Nav.Edit -> EditScreen(
                         recipe = top.id?.let { store.byId(it) },
                         onBack = { stack.removeAt(stack.lastIndex) },
                         onSaved = { saved ->
                             scope.launch {
-                                store.refresh()
+                                store.refresh(api)
                                 stack.removeAt(stack.lastIndex)
                                 if (top.id == null) stack.add(Nav.Detail(saved.id))
                             }
@@ -222,7 +243,7 @@ private fun Centered(content: @Composable () -> Unit) {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { content() }
 }
 
-/** The recipe's own direction: a Hebrew recipe reads right-to-left whatever the phone's language. */
+/** The direction of the language the recipe is shown in (a translation still catching up may mix both). */
 @Composable
 private fun RecipeDirection(recipe: Recipe, content: @Composable () -> Unit) {
     CompositionLocalProvider(LocalLayoutDirection provides if (recipe.isHebrew) LayoutDirection.Rtl else LayoutDirection.Ltr, content = content)
@@ -231,14 +252,14 @@ private fun RecipeDirection(recipe: Recipe, content: @Composable () -> Unit) {
 // ── List ──────────────────────────────────────────────────────────────────────
 
 @Composable
-private fun ListScreen(store: Store, dockBottom: Dp, onOpen: (String) -> Unit, onAdd: () -> Unit, onRefresh: () -> Unit) {
+private fun ListScreen(store: Store, dockBottom: Dp, onOpen: (String) -> Unit, onAdd: () -> Unit, onRefresh: () -> Unit, onLang: (Boolean) -> Unit) {
     val str = LocalStr.current
     val api = LocalApi.current
     var query by remember { mutableStateOf("") }
     val q = query.trim().lowercase()
     val shown = remember(store.recipes, q) {
         if (q.isEmpty()) store.recipes
-        else store.recipes.filter { r -> r.name.lowercase().contains(q) || r.ingredients.any { it.name.lowercase().contains(q) } }
+        else store.recipes.filter { r -> r.view.search.contains(q) }
     }
     Box(Modifier.fillMaxSize()) {
         LazyColumn(
@@ -250,6 +271,7 @@ private fun ListScreen(store: Store, dockBottom: Dp, onOpen: (String) -> Unit, o
             item {
                 Row(Modifier.fillMaxWidth().padding(bottom = 14.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text(str.recipes, style = MaterialTheme.typography.displaySmall, color = Ink, modifier = Modifier.weight(1f))
+                    LangToggle(str.he, dark = false, onLang)
                     IconButton(onClick = onRefresh, enabled = !store.loading) {
                         if (store.loading) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp, color = Terracotta)
                         else Icon(Icons.Default.Refresh, contentDescription = null, tint = Muted)
@@ -332,7 +354,7 @@ private fun ErrorCard(message: String, onRetry: () -> Unit) {
 // ── Detail ────────────────────────────────────────────────────────────────────
 
 @Composable
-private fun DetailScreen(recipe: Recipe, dockBottom: Dp, onBack: () -> Unit, onSteps: () -> Unit, onEdit: () -> Unit, onDeleted: () -> Unit) {
+private fun DetailScreen(recipe: Recipe, dockBottom: Dp, onBack: () -> Unit, onSteps: () -> Unit, onEdit: () -> Unit, onDeleted: () -> Unit, onLang: (Boolean) -> Unit) {
     val str = LocalStr.current
     val api = LocalApi.current
     val scope = rememberCoroutineScope()
@@ -369,12 +391,17 @@ private fun DetailScreen(recipe: Recipe, dockBottom: Dp, onBack: () -> Unit, onS
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
                     Pill(onClick = onBack, dark = cover != null) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = str.recipes, modifier = Modifier.size(20.dp)) }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    LangToggle(str.he, dark = cover != null, onLang)
+                    Spacer(Modifier.width(8.dp))
                     Box {
                         Pill(onClick = { menu = true }, dark = cover != null) { Icon(Icons.Default.MoreVert, contentDescription = null, modifier = Modifier.size(20.dp)) }
                         DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                            DropdownMenuItem(text = { Text(str.edit) }, leadingIcon = { Icon(Icons.Default.Edit, null) }, onClick = { menu = false; onEdit() })
+                            // editing waits for the translation: the edit is made in the language shown
+                            DropdownMenuItem(text = { Text(str.edit) }, leadingIcon = { Icon(Icons.Default.Edit, null) }, enabled = !recipe.view.pending, onClick = { menu = false; onEdit() })
                             DropdownMenuItem(text = { Text(str.delete, color = Danger) }, leadingIcon = { Icon(Icons.Default.Delete, null, tint = Danger) }, onClick = { menu = false; confirm = true })
                         }
+                    }
                     }
                 }
             }
@@ -382,6 +409,7 @@ private fun DetailScreen(recipe: Recipe, dockBottom: Dp, onBack: () -> Unit, onS
                 Column(Modifier.padding(horizontal = 20.dp)) {
                     Spacer(Modifier.height(18.dp))
                     Text(recipe.name, style = MaterialTheme.typography.headlineMedium, color = Ink, modifier = Modifier.fillMaxWidth())
+                    TranslationNote(recipe)
                     recipe.yield?.let { y ->
                         Spacer(Modifier.height(14.dp))
                         ScaleRow(y, percentMode, scaleInput, factor, onMode = { percentMode = it; scaleInput = if (it) "100" else formatScaled(y.amount) }, onInput = { scaleInput = it }, onReset = { scaleInput = if (percentMode) "100" else formatScaled(y.amount) })
@@ -468,6 +496,58 @@ private fun DetailScreen(recipe: Recipe, dockBottom: Dp, onBack: () -> Unit, onS
     }
 }
 
+/** עב | EN: the language the whole app is read in, recipes included. */
+@Composable
+private fun LangToggle(he: Boolean, dark: Boolean, onChange: (Boolean) -> Unit) {
+    val shape = CircleShape
+    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+        Row(
+            Modifier.clip(shape).background(if (dark) Color.Black.copy(alpha = 0.35f) else Card)
+                .border(1.dp, if (dark) Color.White.copy(alpha = 0.25f) else Line, shape).padding(3.dp),
+        ) {
+            listOf(true to "עב", false to "EN").forEach { (value, label) ->
+                val on = value == he
+                Box(
+                    Modifier.clip(shape)
+                        .background(if (on) (if (dark) Amber else Ink) else Color.Transparent)
+                        .clickable(enabled = !on) { onChange(value) }
+                        .padding(horizontal = 11.dp, vertical = 6.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        label,
+                        style = MaterialTheme.typography.labelLarge,
+                        color = when {
+                            on -> if (dark) Dark else Paper
+                            dark -> Color.White
+                            else -> Muted
+                        },
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** Under the title: the translation is on its way, or this is one. Nothing on an original. */
+@Composable
+private fun TranslationNote(recipe: Recipe) {
+    val str = LocalStr.current
+    if (recipe.view.original) return
+    Spacer(Modifier.height(6.dp))
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        if (recipe.view.pending) {
+            CircularProgressIndicator(Modifier.size(14.dp), strokeWidth = 2.dp, color = Terracotta)
+            Spacer(Modifier.width(8.dp))
+        }
+        Text(
+            if (recipe.view.pending) str.translating else str.translated(recipe.lang),
+            style = MaterialTheme.typography.bodySmall,
+            color = Muted,
+        )
+    }
+}
+
 @Composable
 private fun Pill(onClick: () -> Unit, dark: Boolean, content: @Composable () -> Unit) {
     Box(
@@ -534,7 +614,7 @@ private fun Segmented(options: List<String>, selected: Int, onSelect: (Int) -> U
 // ── Step mode: one page per slide, the footage scrubbed by the drag ──────────
 
 @Composable
-private fun StepsScreen(recipe: Recipe, onBack: () -> Unit) {
+private fun StepsScreen(recipe: Recipe, onBack: () -> Unit, onLang: (Boolean) -> Unit) {
     val str = LocalStr.current
     val api = LocalApi.current
     val slides = remember(recipe) { recipe.slides() }
@@ -631,6 +711,8 @@ private fun StepsScreen(recipe: Recipe, onBack: () -> Unit) {
                         Text(str.recipe, style = MaterialTheme.typography.labelLarge)
                     }
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        LangToggle(str.he, dark = true, onLang)
+                        // narration comes only when it is spoken in the language shown
                         if (recipe.audio != null) {
                             DarkPill(onClick = { auto = !auto; if (!auto) narrator.stop() }) {
                                 Icon(

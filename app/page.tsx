@@ -1,6 +1,7 @@
 import { getRecipes } from "@/lib/recipes";
 import { viewOf, withText } from "@/lib/recipe-i18n";
 import { scheduleTranslation } from "@/lib/translate";
+import { searchTextOf } from "@/lib/recipe-view";
 import { getViewLang } from "@/lib/view-lang";
 import AddRecipeForm, { type AddRecipeLabels } from "@/app/components/AddRecipeForm";
 import RecipeList, { type RecipeListItem, type RecipeListLabels } from "@/app/components/RecipeList";
@@ -78,13 +79,8 @@ export default async function Home() {
   const items: RecipeListItem[] = sorted.map((r) => {
     const view = viewOf(r, lang);
     if (view.pending) scheduleTranslation(r.id);
-    const other = r.translations ? Object.values(r.translations).map((t) => t!.text) : [];
     // Search finds a recipe by its words in either language.
-    const searchText = [r, ...other]
-      .flatMap((t) => [t.name, ...t.ingredients.map((i) => i.name)])
-      .join("\n")
-      .toLowerCase();
-    return { recipe: withText(r, view.text), searchText };
+    return { recipe: withText(r, view.text), searchText: searchTextOf(r) };
   });
 
   // The list's counts are functions, which cannot cross into a client component: render them here.

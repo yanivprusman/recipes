@@ -39,9 +39,21 @@ data class RecipeAudio(
     val steps: List<String?>? = null,
 )
 
+/**
+ * Which language the server put this recipe's words in (the app asks for one with ?lang=),
+ * whether that is the language it was written in, and whether the translation is still being
+ * made — then some parts are still in the original language and editing waits.
+ * [search] is the recipe's name and ingredients in both languages, lowercased.
+ */
+@Serializable
+data class RecipeView(val lang: String, val original: Boolean, val pending: Boolean, val search: String)
+
 @Serializable
 data class Recipe(
     val id: String,
+    /** The language the recipe was written in. */
+    val lang: String,
+    val view: RecipeView,
     val name: String,
     val ingredients: List<Ingredient>,
     val steps: List<String>,
@@ -51,7 +63,7 @@ data class Recipe(
     val audio: RecipeAudio? = null,
     val createdAt: String = "",
 ) {
-    val isHebrew: Boolean get() = name.any { it in '֐'..'׿' }
+    val isHebrew: Boolean get() = view.lang == "he"
 }
 
 @Serializable
