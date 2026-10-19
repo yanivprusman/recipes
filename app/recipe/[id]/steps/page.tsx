@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getRecipe } from "@/lib/recipes";
 import StepMode from "@/app/components/StepMode";
+import { viewOf, withText } from "@/lib/recipe-i18n";
+import { scheduleTranslation } from "@/lib/translate";
+import { getViewLang } from "@/lib/view-lang";
 
 export const dynamic = "force-dynamic";
 
@@ -38,10 +41,6 @@ const labels = {
   },
 };
 
-function detectLanguage(text: string): "he" | "en" {
-  return /[֐-׿]/.test(text) ? "he" : "en";
-}
-
 export async function generateMetadata({
   params,
 }: {
@@ -49,7 +48,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { id } = await params;
   const recipe = await getRecipe(id);
-  return { title: recipe ? recipe.name : "recipes" };
+  return { title: recipe ? viewOf(recipe, await getViewLang()).text.name : "recipes" };
 }
 
 export default async function StepsPage({
@@ -61,6 +60,11 @@ export default async function StepsPage({
   const recipe = await getRecipe(id);
   if (!recipe) notFound();
 
-  const lang = detectLanguage(recipe.name);
-  return <StepMode recipe={recipe} lang={lang} labels={labels[lang]} />;
+  const lang = await getViewLang();
+  const view = viewOf(recipe, lang);
+  if (view.pending) scheduleTranslation(recipe.id);
+  // Narration is recorded in one language; someone reading the other one gets none.
+  const { audio, ...rest } = withText(recipe, view.text);
+  const shown = audio?.lang === lang ? { ...rest, audio } : rest;
+  return <StepMode recipe={shown} lang={lang} labels={labels[lang]} />;
 }

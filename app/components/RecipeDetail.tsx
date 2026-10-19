@@ -2,11 +2,15 @@
 
 import { useState } from "react";
 import { updateRecipeAction, deleteRecipeAction } from "@/app/actions";
-import type { Recipe } from "@/lib/recipes";
+import type { Lang, Recipe, Removed } from "@/lib/recipes";
 import { realignStepMedia, type StepMedia } from "@/lib/recipe-media";
 
 interface Props {
+  /** The recipe with its words in `lang`, the language being read (and edited). */
   recipe: Recipe;
+  lang: Lang;
+  /** false while the translation is still coming in: the text on screen is not final yet. */
+  editable: boolean;
   labels: {
     ingredients: string;
     preparation: string;
@@ -21,6 +25,11 @@ interface Props {
     confirmDelete: string;
     confirmYes: string;
     confirmNo: string;
+    clickToEdit: string;
+    removeIngredient: string;
+    removeStep: string;
+    markDone: string;
+    saving: string;
   };
 }
 
@@ -91,7 +100,7 @@ function toggledSet(set: Set<number>, i: number): Set<number> {
   return next;
 }
 
-export default function RecipeDetail({ recipe, labels }: Props) {
+export default function RecipeDetail({ recipe, lang, editable, labels }: Props) {
   const [name, setName] = useState(recipe.name);
   const [ingredients, setIngredients] = useState(recipe.ingredients);
   const [steps, setSteps] = useState(recipe.steps);
@@ -133,11 +142,14 @@ export default function RecipeDetail({ recipe, labels }: Props) {
     newName: string,
     newIngredients: typeof ingredients,
     newSteps: typeof steps,
-    newMedia: StepMedia = media
+    newMedia: StepMedia = media,
+    removed?: Removed
   ) {
     setSaving(true);
     try {
       await updateRecipeAction(recipe.id, {
+        lang,
+        ...(removed ? { removed } : {}),
         name: newName,
         ingredients: newIngredients,
         steps: newSteps,
@@ -230,7 +242,7 @@ export default function RecipeDetail({ recipe, labels }: Props) {
     setIngredients(updated);
     setCheckedIngredients(shiftSetAfterRemoval(checkedIngredients, i));
     setEditingIngredient(null);
-    save(name, updated, steps);
+    save(name, updated, steps, media, { ingredient: i });
   }
 
   function addIngredient() {
@@ -267,7 +279,7 @@ export default function RecipeDetail({ recipe, labels }: Props) {
     setEditingStep(null);
     const nextMedia = hasMedia ? realignStepMedia(media, updated.length, i) : media;
     setMedia(nextMedia);
-    save(name, ingredients, updated, nextMedia);
+    save(name, ingredients, updated, nextMedia, { step: i });
   }
 
   function addStep() {
@@ -292,9 +304,10 @@ export default function RecipeDetail({ recipe, labels }: Props) {
       ) : (
         <h1
           data-id="recipe-name"
-          onClick={() => setEditingName(true)}
-          title="Click to edit"
-          className="text-3xl font-bold text-stone-800 mt-4 mb-8 cursor-pointer hover:bg-amber-50 rounded px-2 py-1 -mx-2 transition-colors"
+          dir="auto"
+          onClick={() => editable && setEditingName(true)}
+          title={editable ? labels.clickToEdit : undefined}
+          className={`text-3xl font-bold text-stone-800 mt-4 mb-8 ${editable ? "cursor-pointer hover:bg-amber-50" : ""} rounded px-2 py-1 -mx-2 transition-colors`}
         >
           {name}
         </h1>
@@ -425,7 +438,7 @@ export default function RecipeDetail({ recipe, labels }: Props) {
                       type="button"
                       onMouseDown={(e) => e.preventDefault()}
                       onClick={() => removeIngredient(i)}
-                      title="Remove ingredient"
+                      title={labels.removeIngredient}
                       className="text-stone-400 hover:text-red-500 text-lg px-1 cursor-pointer"
                     >
                       ×
@@ -434,11 +447,12 @@ export default function RecipeDetail({ recipe, labels }: Props) {
                 ) : (
                   <span
                     data-id={`ingredient-${i}`}
-                    onClick={() => setEditingIngredient(i)}
-                    className={`cursor-pointer hover:bg-amber-50 rounded px-1 -mx-1 py-0.5 transition-colors ${
+                    dir="auto"
+                    onClick={() => editable && setEditingIngredient(i)}
+                    className={`${editable ? "cursor-pointer hover:bg-amber-50" : ""} rounded px-1 -mx-1 py-0.5 transition-colors ${
                       checked ? "line-through text-stone-400" : ""
                     }`}
-                    title="Click to edit"
+                    title={editable ? labels.clickToEdit : undefined}
                   >
                     <span className="font-medium">
                       {scaleQuantity(ing.quantity, scaleFactor)}
@@ -453,8 +467,9 @@ export default function RecipeDetail({ recipe, labels }: Props) {
         <button
           data-id="add-ingredient"
           type="button"
+          disabled={!editable}
           onClick={addIngredient}
-          className="mt-2 text-sm text-amber-700 hover:text-amber-800 font-medium cursor-pointer"
+          className="mt-2 text-sm text-amber-700 hover:text-amber-800 font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
         >
           + {labels.addIngredient}
         </button>
@@ -474,7 +489,7 @@ export default function RecipeDetail({ recipe, labels }: Props) {
                   type="button"
                   aria-pressed={done}
                   onClick={() => setDoneSteps(toggledSet(doneSteps, i))}
-                  title="Mark step as done"
+                  title={labels.markDone}
                   className={`font-bold shrink-0 self-start cursor-pointer transition-colors ${
                     done
                       ? "text-stone-300 line-through"
@@ -511,7 +526,7 @@ export default function RecipeDetail({ recipe, labels }: Props) {
                       type="button"
                       onMouseDown={(e) => e.preventDefault()}
                       onClick={() => removeStep(i)}
-                      title="Remove step"
+                      title={labels.removeStep}
                       className="self-start text-stone-400 hover:text-red-500 text-lg px-1 cursor-pointer"
                     >
                       ×
@@ -520,11 +535,12 @@ export default function RecipeDetail({ recipe, labels }: Props) {
                 ) : (
                   <span
                     data-id={`step-${i}`}
-                    onClick={() => setEditingStep(i)}
-                    className={`cursor-pointer whitespace-pre-wrap hover:bg-amber-50 rounded px-1 -mx-1 py-0.5 transition-colors ${
+                    dir="auto"
+                    onClick={() => editable && setEditingStep(i)}
+                    className={`${editable ? "cursor-pointer hover:bg-amber-50" : ""} whitespace-pre-wrap rounded px-1 -mx-1 py-0.5 transition-colors ${
                       done ? "text-stone-400" : ""
                     }`}
-                    title="Click to edit"
+                    title={editable ? labels.clickToEdit : undefined}
                   >
                     {recipe.yield
                       ? scaleStepText(step, scaleFactor, recipe.yield.amount, recipe.yield.unit)
@@ -538,15 +554,16 @@ export default function RecipeDetail({ recipe, labels }: Props) {
         <button
           data-id="add-step"
           type="button"
+          disabled={!editable}
           onClick={addStep}
-          className="mt-3 text-sm text-amber-700 hover:text-amber-800 font-medium cursor-pointer"
+          className="mt-3 text-sm text-amber-700 hover:text-amber-800 font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
         >
           + {labels.addStep}
         </button>
       </section>
 
       {saving && (
-        <p className="text-sm text-amber-600 mt-4">Saving...</p>
+        <p className="text-sm text-amber-600 mt-4">{labels.saving}</p>
       )}
 
       <section className="mt-12 pt-6 border-t border-stone-200">

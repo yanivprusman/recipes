@@ -2,6 +2,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getRecipe } from "@/lib/recipes";
 import RecipeDetail from "@/app/components/RecipeDetail";
+import LangToggle from "@/app/components/LangToggle";
+import TranslationNotice from "@/app/components/TranslationNotice";
+import { LANG_NAMES, dirOf, viewOf, withText } from "@/lib/recipe-i18n";
+import { scheduleTranslation } from "@/lib/translate";
+import { getViewLang } from "@/lib/view-lang";
 
 export const dynamic = "force-dynamic";
 
@@ -22,6 +27,14 @@ const labels = {
     confirmYes: "Delete",
     confirmNo: "Cancel",
     stepMode: "Step by step",
+    clickToEdit: "Click to edit",
+    removeIngredient: "Remove ingredient",
+    removeStep: "Remove step",
+    markDone: "Mark step as done",
+    saving: "Saving...",
+    translating: "Translating into English… parts not yet translated are shown in Hebrew.",
+    editAfterTranslation: "Editing opens once the translation is ready.",
+    originalIn: (l: string) => `Written in ${l}; translated automatically.`,
   },
   he: {
     back: "חזרה למתכונים",
@@ -39,12 +52,16 @@ const labels = {
     confirmYes: "מחק",
     confirmNo: "ביטול",
     stepMode: "שלב אחר שלב",
+    clickToEdit: "לחצו לעריכה",
+    removeIngredient: "הסרת מצרך",
+    removeStep: "הסרת שלב",
+    markDone: "סימון השלב כבוצע",
+    saving: "שומר...",
+    translating: "מתרגם לעברית… מה שעוד לא תורגם מוצג באנגלית.",
+    editAfterTranslation: "העריכה תיפתח כשהתרגום יהיה מוכן.",
+    originalIn: (l: string) => `נכתב ב${l}; תורגם אוטומטית.`,
   },
 };
-
-function detectLanguage(text: string): "he" | "en" {
-  return /[\u0590-\u05FF]/.test(text) ? "he" : "en";
-}
 
 export default async function RecipePage({
   params,
@@ -58,9 +75,11 @@ export default async function RecipePage({
     notFound();
   }
 
-  const lang = detectLanguage(recipe.name);
+  const lang = await getViewLang();
   const l = labels[lang];
-  const dir = lang === "he" ? "rtl" : "ltr";
+  const dir = dirOf(lang);
+  const view = viewOf(recipe, lang);
+  if (view.pending) scheduleTranslation(recipe.id);
 
   return (
     <main className="max-w-2xl mx-auto px-4 py-10" dir={dir} lang={lang}>
@@ -72,6 +91,8 @@ export default async function RecipePage({
         >
           {dir === "rtl" ? "\u2192" : "\u2190"} {l.back}
         </Link>
+        <span className="flex items-center gap-2">
+        <LangToggle lang={lang} />
         <Link
           data-id="step-mode"
           href={`/recipe/${recipe.id}/steps`}
@@ -80,10 +101,26 @@ export default async function RecipePage({
           <span aria-hidden="true" className="inline-block h-2 w-2 rounded-full bg-amber-200" />
           {l.stepMode}
         </Link>
+        </span>
       </div>
 
+      {view.pending ? (
+        <TranslationNotice text={`${l.translating} ${l.editAfterTranslation}`} />
+      ) : (
+        !view.original && (
+          <p data-id="translated-note" className="mt-4 text-xs text-stone-400">
+            {l.originalIn(LANG_NAMES[recipe.lang][lang])}
+          </p>
+        )
+      )}
+
       <RecipeDetail
-        recipe={recipe}
+        // A new language (or the translation arriving) starts the editor over from that text.
+        key={`${lang}:${view.pending}`}
+        // The editor only needs the words on screen; translations stay on the server.
+        recipe={{ ...withText(recipe, view.text), translations: undefined }}
+        lang={lang}
+        editable={!view.pending}
         labels={{
           ingredients: l.ingredients,
           preparation: l.preparation,
@@ -98,6 +135,11 @@ export default async function RecipePage({
           confirmDelete: l.confirmDelete,
           confirmYes: l.confirmYes,
           confirmNo: l.confirmNo,
+          clickToEdit: l.clickToEdit,
+          removeIngredient: l.removeIngredient,
+          removeStep: l.removeStep,
+          markDone: l.markDone,
+          saving: l.saving,
         }}
       />
     </main>

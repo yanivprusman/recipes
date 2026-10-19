@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import type { Recipe, Segment } from "@/lib/recipes";
+import LangToggle from "@/app/components/LangToggle";
 
 export interface StepModeLabels {
   back: string;
@@ -307,6 +308,7 @@ export default function StepMode({ recipe, lang, labels }: Props) {
           <span aria-hidden="true">{dir === "rtl" ? "→" : "←"}</span> {labels.back}
         </Link>
         <span className="sm-bar-end">
+          <LangToggle lang={lang} variant="dark" />
           {recipe.audio && (
             <button
               type="button"

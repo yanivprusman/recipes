@@ -40,6 +40,8 @@ export interface RecipeVideo {
 
 /** Spoken narration per slide (site-relative audio paths), played on demand in step mode. */
 export interface RecipeAudio {
+  /** The language it is spoken in: step mode only plays it to someone reading in that language. */
+  lang: "he" | "en";
   cover?: string;
   ingredients?: string;
   steps?: (string | null)[];

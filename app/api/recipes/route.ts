@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { addRecipe, getRecipes } from "@/lib/recipes";
 import { parseRecipeBody } from "@/lib/recipe-body";
+import { scheduleTranslation } from "@/lib/translate";
 
 export const dynamic = "force-dynamic";
 
@@ -30,5 +31,6 @@ export async function POST(req: Request) {
     steps: body.steps,
     ...(body.yield ? { yield: body.yield } : {}),
   });
+  scheduleTranslation(recipe.id);
   return NextResponse.json(recipe, { status: 201 });
 }

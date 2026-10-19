@@ -4,17 +4,26 @@ import { useState } from "react";
 import Link from "next/link";
 import type { Recipe } from "@/lib/recipes";
 
-export default function RecipeList({ recipes }: { recipes: Recipe[] }) {
+export interface RecipeListItem {
+  /** The recipe with its words in the language being read. */
+  recipe: Recipe;
+  /** Lower-cased names and ingredients in every language the recipe has. */
+  searchText: string;
+}
+
+export interface RecipeListLabels {
+  search: string;
+  /** "{q}" is replaced by the query. */
+  noMatch: string;
+  /** "6 ingredients / 7 steps", per recipe id. */
+  counts: Record<string, string>;
+}
+
+export default function RecipeList({ items, labels }: { items: RecipeListItem[]; labels: RecipeListLabels }) {
   const [query, setQuery] = useState("");
 
   const q = query.trim().toLowerCase();
-  const filtered = q
-    ? recipes.filter(
-        (r) =>
-          r.name.toLowerCase().includes(q) ||
-          r.ingredients.some((ing) => ing.name.toLowerCase().includes(q))
-      )
-    : recipes;
+  const filtered = q ? items.filter((it) => it.searchText.includes(q)) : items;
 
   return (
     <>
@@ -24,15 +33,15 @@ export default function RecipeList({ recipes }: { recipes: Recipe[] }) {
         dir="auto"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        placeholder="Search by name or ingredient..."
+        placeholder={labels.search}
         className="w-full mb-5 rounded-lg border border-stone-300 px-3 py-2 text-stone-800 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none"
       />
 
       {filtered.length === 0 ? (
-        <p className="text-stone-500">No recipes match “{query.trim()}”.</p>
+        <p className="text-stone-500">{labels.noMatch.replace("{q}", query.trim())}</p>
       ) : (
         <ul className="space-y-3">
-          {filtered.map((recipe) => (
+          {filtered.map(({ recipe }) => (
             <li key={recipe.id}>
               <Link
                 data-id={`recipe-card-${recipe.id}`}
@@ -44,9 +53,7 @@ export default function RecipeList({ recipes }: { recipes: Recipe[] }) {
                     {recipe.name}
                   </span>
                   <span className="block text-sm text-stone-400 mt-1">
-                    {recipe.ingredients.length} ingredient{recipe.ingredients.length !== 1 && "s"}
-                    {" / "}
-                    {recipe.steps.length} step{recipe.steps.length !== 1 && "s"}
+                    {labels.counts[recipe.id]}
                   </span>
                 </span>
                 {recipe.images?.cover && (

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { deleteRecipe, getRecipe, realignStepMedia, setRecipeYield, updateRecipe } from "@/lib/recipes";
 import { parseRecipeBody } from "@/lib/recipe-body";
+import { scheduleTranslation } from "@/lib/translate";
 
 export const dynamic = "force-dynamic";
 
@@ -30,7 +31,9 @@ export async function PUT(req: Request, { params }: Ctx) {
   }
   const existing = await getRecipe(id);
   if (!existing) return NextResponse.json({ error: "Recipe not found" }, { status: 404 });
+  // The phone edits the recipe in the language it was written in.
   const updated = await updateRecipe(id, {
+    lang: existing.lang,
     ...(body.hasName ? { name: body.name } : {}),
     ingredients: body.ingredients,
     steps: body.steps,
@@ -40,6 +43,7 @@ export async function PUT(req: Request, { params }: Ctx) {
   // yield is not part of updateRecipe's contract (the web editor never changes it);
   // it stays a separate, explicit write so the pages' code path is untouched.
   if (body.yield !== undefined) await setRecipeYield(id, body.yield);
+  scheduleTranslation(id);
   revalidatePath(`/recipe/${id}`);
   revalidatePath(`/recipe/${id}/steps`);
   revalidatePath("/");

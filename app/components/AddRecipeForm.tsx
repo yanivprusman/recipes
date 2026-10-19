@@ -3,7 +3,26 @@
 import { useState } from "react";
 import { createRecipe } from "@/app/actions";
 
-export default function AddRecipeForm() {
+export interface AddRecipeLabels {
+  open: string;
+  heading: string;
+  name: string;
+  namePlaceholder: string;
+  yield: string;
+  amount: string;
+  unit: string;
+  ingredients: string;
+  ingredient: string;
+  quantity: string;
+  addIngredient: string;
+  steps: string;
+  step: string;
+  addStep: string;
+  save: string;
+  cancel: string;
+}
+
+export default function AddRecipeForm({ labels }: { labels: AddRecipeLabels }) {
   const [ingredients, setIngredients] = useState([{ name: "", quantity: "" }]);
   const [steps, setSteps] = useState([""]);
   const [open, setOpen] = useState(false);
@@ -31,7 +50,7 @@ export default function AddRecipeForm() {
         onClick={() => setOpen(true)}
         className="bg-amber-600 hover:bg-amber-700 text-white px-5 py-2.5 rounded-lg font-medium transition-colors"
       >
-        + Add Recipe
+        {labels.open}
       </button>
     );
   }
@@ -41,23 +60,23 @@ export default function AddRecipeForm() {
       action={createRecipe}
       className="bg-white border border-stone-200 rounded-xl p-6 shadow-sm"
     >
-      <h2 className="text-xl font-semibold text-stone-800 mb-4">New Recipe</h2>
+      <h2 className="text-xl font-semibold text-stone-800 mb-4">{labels.heading}</h2>
 
       <label className="block mb-4">
-        <span className="text-sm font-medium text-stone-600">Recipe Name</span>
+        <span className="text-sm font-medium text-stone-600">{labels.name}</span>
         <input
           data-id="new-recipe-name"
           name="name"
           required
           dir="auto"
           className="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-stone-800 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none"
-          placeholder="e.g. Spaghetti Bolognese"
+          placeholder={labels.namePlaceholder}
         />
       </label>
 
       <fieldset className="mb-4">
         <legend className="text-sm font-medium text-stone-600 mb-2">
-          Yield
+          {labels.yield}
         </legend>
         <div className="flex gap-2 items-center">
           <input
@@ -66,13 +85,13 @@ export default function AddRecipeForm() {
             type="number"
             min="0"
             step="any"
-            placeholder="Amount"
+            placeholder={labels.amount}
             className="w-24 rounded-lg border border-stone-300 px-3 py-2 text-stone-800 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none"
           />
           <input
             data-id="new-yield-unit"
             name="yield-unit"
-            placeholder="Unit (e.g. balls, loaves)"
+            placeholder={labels.unit}
             className="flex-1 rounded-lg border border-stone-300 px-3 py-2 text-stone-800 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none"
           />
         </div>
@@ -80,7 +99,7 @@ export default function AddRecipeForm() {
 
       <fieldset className="mb-4">
         <legend className="text-sm font-medium text-stone-600 mb-2">
-          Ingredients
+          {labels.ingredients}
         </legend>
         <div className="space-y-2">
           {ingredients.map((_, i) => (
@@ -90,7 +109,7 @@ export default function AddRecipeForm() {
                 name="ingredient-name"
                 required
                 dir="auto"
-                placeholder="Ingredient"
+                placeholder={labels.ingredient}
                 className="flex-1 rounded-lg border border-stone-300 px-3 py-2 text-stone-800 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none"
               />
               <input
@@ -98,7 +117,7 @@ export default function AddRecipeForm() {
                 name="ingredient-qty"
                 required
                 dir="auto"
-                placeholder="Quantity"
+                placeholder={labels.quantity}
                 className="w-32 rounded-lg border border-stone-300 px-3 py-2 text-stone-800 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none"
               />
               {ingredients.length > 1 && (
@@ -120,18 +139,18 @@ export default function AddRecipeForm() {
           onClick={addIngredient}
           className="mt-2 text-sm text-amber-700 hover:text-amber-800 font-medium"
         >
-          + Add ingredient
+          {labels.addIngredient}
         </button>
       </fieldset>
 
       <fieldset className="mb-6">
         <legend className="text-sm font-medium text-stone-600 mb-2">
-          Steps
+          {labels.steps}
         </legend>
         <div className="space-y-2">
           {steps.map((_, i) => (
             <div key={i} className="flex gap-2 items-start">
-              <span className="text-stone-400 text-sm w-6 text-right shrink-0 pt-2">
+              <span className="text-stone-400 text-sm w-6 text-end shrink-0 pt-2">
                 {i + 1}.
               </span>
               <textarea
@@ -140,7 +159,7 @@ export default function AddRecipeForm() {
                 required
                 dir="auto"
                 rows={2}
-                placeholder={`Step ${i + 1}`}
+                placeholder={`${labels.step} ${i + 1}`}
                 className="flex-1 resize-y rounded-lg border border-stone-300 px-3 py-2 text-stone-800 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none"
               />
               {steps.length > 1 && (
@@ -162,7 +181,7 @@ export default function AddRecipeForm() {
           onClick={addStep}
           className="mt-2 text-sm text-amber-700 hover:text-amber-800 font-medium"
         >
-          + Add step
+          {labels.addStep}
         </button>
       </fieldset>
 
@@ -172,7 +191,7 @@ export default function AddRecipeForm() {
           type="submit"
           className="bg-amber-600 hover:bg-amber-700 text-white px-5 py-2.5 rounded-lg font-medium transition-colors"
         >
-          Save Recipe
+          {labels.save}
         </button>
         <button
           data-id="cancel-add-recipe"
@@ -184,7 +203,7 @@ export default function AddRecipeForm() {
           }}
           className="text-stone-500 hover:text-stone-700 px-4 py-2.5 font-medium transition-colors"
         >
-          Cancel
+          {labels.cancel}
         </button>
       </div>
     </form>
