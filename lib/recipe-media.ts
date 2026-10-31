@@ -56,7 +56,15 @@ export interface RecipeAudio {
 export interface StepMedia {
   images?: RecipeImages;
   video?: RecipeVideo;
+  /** Narration in the language it was recorded in first (usually the recipe's own). */
   audio?: RecipeAudio;
+  /** Narration recorded in further languages, one track per language, each its own `lang`. */
+  narrations?: RecipeAudio[];
+}
+
+/** The narration spoken in `lang`, whichever field holds it; none if it was never recorded. */
+export function narrationFor(media: StepMedia, lang: "he" | "en"): RecipeAudio | undefined {
+  return [media.audio, ...(media.narrations ?? [])].find((a) => a?.lang === lang);
 }
 
 export function realignStepMedia(recipe: StepMedia, count: number, removed?: number): StepMedia {
@@ -70,6 +78,7 @@ export function realignStepMedia(recipe: StepMedia, count: number, removed?: num
     ...(recipe.images ? { images: { ...recipe.images, steps: fix(recipe.images.steps) } } : {}),
     ...(recipe.video ? { video: { ...recipe.video, steps: fix(recipe.video.steps) } } : {}),
     ...(recipe.audio ? { audio: { ...recipe.audio, steps: fix(recipe.audio.steps) } } : {}),
+    ...(recipe.narrations ? { narrations: recipe.narrations.map((a) => ({ ...a, steps: fix(a.steps) })) } : {}),
   };
 }
 

@@ -1,5 +1,6 @@
 import type { Recipe } from "@/lib/recipes";
 import { viewOf, withText, type Lang } from "@/lib/recipe-i18n";
+import { narrationFor } from "@/lib/recipe-media";
 import { scheduleTranslation } from "@/lib/translate";
 
 /** Everything a recipe is searchable by: its name and ingredient names in both languages. */
@@ -19,11 +20,12 @@ export function searchTextOf(r: Recipe): string {
 export function recipeInLang(r: Recipe, lang: Lang) {
   const view = viewOf(r, lang);
   if (view.pending) scheduleTranslation(r.id);
-  const { audio, ...rest } = withText(r, view.text);
+  const audio = narrationFor(r, lang);
   return {
-    ...rest,
+    ...withText(r, view.text),
     translations: undefined,
-    ...(audio?.lang === lang ? { audio } : {}),
+    narrations: undefined,
+    audio,
     view: { lang, original: view.original, pending: view.pending, search: searchTextOf(r) },
   };
 }

@@ -110,8 +110,9 @@ export default function RecipeDetail({ recipe, lang, editable, labels }: Props) 
     ...(recipe.images ? { images: recipe.images } : {}),
     ...(recipe.video ? { video: recipe.video } : {}),
     ...(recipe.audio ? { audio: recipe.audio } : {}),
+    ...(recipe.narrations ? { narrations: recipe.narrations } : {}),
   });
-  const hasMedia = Boolean(recipe.images || recipe.video || recipe.audio);
+  const hasMedia = Boolean(recipe.images || recipe.video || recipe.audio || recipe.narrations);
   const [editingName, setEditingName] = useState(false);
   const [editingIngredient, setEditingIngredient] = useState<number | null>(null);
   const [editingStep, setEditingStep] = useState<number | null>(null);

@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { getRecipe } from "@/lib/recipes";
 import StepMode from "@/app/components/StepMode";
 import { viewOf, withText } from "@/lib/recipe-i18n";
+import { narrationFor } from "@/lib/recipe-media";
 import { scheduleTranslation } from "@/lib/translate";
 import { getViewLang } from "@/lib/view-lang";
 
@@ -63,8 +64,8 @@ export default async function StepsPage({
   const lang = await getViewLang();
   const view = viewOf(recipe, lang);
   if (view.pending) scheduleTranslation(recipe.id);
-  // Narration is recorded in one language; someone reading the other one gets none.
-  const { audio, ...rest } = withText(recipe, view.text);
-  const shown = audio?.lang === lang ? { ...rest, audio } : rest;
+  // Narration is recorded per language; someone reading one with no recording gets none.
+  const audio = narrationFor(recipe, lang);
+  const shown = { ...withText(recipe, view.text), narrations: undefined, audio };
   return <StepMode recipe={shown} lang={lang} labels={labels[lang]} />;
 }

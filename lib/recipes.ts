@@ -30,6 +30,7 @@ export interface Recipe {
   images?: RecipeImages;
   video?: RecipeVideo;
   audio?: RecipeAudio;
+  narrations?: RecipeAudio[];
   translations?: Partial<Record<Lang, RecipeTranslation>>;
   createdAt: string;
 }
@@ -183,13 +184,14 @@ export async function updateRecipe(
     images?: RecipeImages;
     video?: RecipeVideo;
     audio?: RecipeAudio;
+    narrations?: RecipeAudio[];
   }
 ): Promise<Recipe | undefined> {
   return locked(async () => {
     const recipes = await getRecipes();
     const index = recipes.findIndex((r) => r.id === id);
     if (index === -1) return undefined;
-    const { lang, name, ingredients, steps, removed, images, video, audio } = data;
+    const { lang, name, ingredients, steps, removed, images, video, audio, narrations } = data;
     let r = recipes[index];
     if (lang !== r.lang) r = swapLanguage(r, lang);
     const other = otherLang(r.lang);
@@ -203,6 +205,7 @@ export async function updateRecipe(
       ...(images === undefined ? {} : { images }),
       ...(video === undefined ? {} : { video }),
       ...(audio === undefined ? {} : { audio }),
+      ...(narrations === undefined ? {} : { narrations }),
     };
     await writeRecipes(recipes);
     return recipes[index];

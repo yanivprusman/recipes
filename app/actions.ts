@@ -69,6 +69,7 @@ export async function updateRecipeAction(
     images?: RecipeImages;
     video?: RecipeVideo;
     audio?: RecipeAudio;
+    narrations?: RecipeAudio[];
   }
 ) {
   const result = await updateRecipe(id, data);
